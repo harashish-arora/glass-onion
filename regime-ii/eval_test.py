@@ -1,6 +1,7 @@
 import os
 import joblib
 import torch
+import time  # <--- Imported time
 import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_squared_error, r2_score
@@ -31,6 +32,9 @@ def run_evaluation():
     solv_raw = pd.read_parquet(os.path.join(STORE_DIR, "solvent_raw.parquet")).set_index('SMILES_KEY')
     sol_c = pd.read_parquet(os.path.join(STORE_DIR, "solute_council.parquet")).set_index('SMILES_KEY')
     solv_c = pd.read_parquet(os.path.join(STORE_DIR, "solvent_council.parquet")).set_index('SMILES_KEY')
+
+    # start benchmark timer
+    start_time = time.time()
 
     # 4. Generate Transformer Embeddings
     print(f"Generating learned interactions for {len(df_test)} molecules...")
@@ -71,6 +75,11 @@ def run_evaluation():
     X_pruned = selector.transform(X_full)
     preds = model.predict(X_pruned)
 
+    # stop benchmark timer
+    end_time = time.time()
+    total_time = end_time - start_time
+    throughput = len(df_test) / total_time
+
     # 7. Final Metrics
     rmse = np.sqrt(mean_squared_error(y_true, preds))
     r2 = r2_score(y_true, preds)
@@ -78,7 +87,10 @@ def run_evaluation():
     print()
     print("Test Results")
     print(f"RMSE: {rmse:.4f}")
-    print(f"R2:   {r2:.4f}")
+    print(f"R2: {r2:.4f}")
+    print("Inference timing results:")
+    print(f"Total Time: {total_time:.4f} s")
+    print(f"Throughput: {throughput:.0f} pairs/sec")
 
 if __name__ == "__main__":
     run_evaluation()
