@@ -7,3 +7,4 @@ BigSolDB.csv
 BigSolDB 2.0 Dataset.csv
 __pycache__/
 catboost_info/
+.DS_Store
