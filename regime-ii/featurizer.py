@@ -10,7 +10,20 @@ from tqdm import tqdm
 class MoleculeFeaturizer:
     def __init__(self):
         self.enumerator = rdMolStandardize.TautomerEnumerator()
-        self.desc_map = {name: func for name, func in Descriptors.descList if name not in ['Ipc', 'Kappa3']}
+        
+        # Features to exclude (highly correlated with structural features)
+        exclude_prefixes = ['BCUT2D', 'SMR_VSA', 'SlogP_VSA', 'VSA_EState']
+        exclude_exact = {'Ipc', 'Kappa3', 'LabuteASA', 'MolMR'}
+        
+        self.desc_map = {}
+        for name, func in Descriptors.descList:
+            # Skip excluded features
+            if name in exclude_exact:
+                continue
+            if any(name.startswith(prefix) for prefix in exclude_prefixes):
+                continue
+            self.desc_map[name] = func
+        
         # atom inventory
         self.inventory = ['C', 'O', 'N', 'Cl', 'S', 'F', 'P', 'Br', 'Na', 'I', 'K', 'B', 'Se', 'Ca', 'Li']
 

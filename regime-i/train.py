@@ -48,6 +48,7 @@ def main():
         iterations=3000,
         learning_rate=0.02,
         depth=8,
+        l2_leaf_reg=5,
         verbose=200,
         random_state=SEED,
         allow_writing_files=False,
