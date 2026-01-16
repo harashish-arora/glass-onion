@@ -45,7 +45,7 @@ def main():
     # 3. Training
     print("Training CatBoost Regressor...")
     model = CatBoostRegressor(
-        iterations=3000,
+        iterations=5000,
         learning_rate=0.02,
         depth=8,
         l2_leaf_reg=5,

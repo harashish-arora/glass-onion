@@ -12,8 +12,10 @@ class MoleculeFeaturizer:
         self.enumerator = rdMolStandardize.TautomerEnumerator()
         
         # Features to exclude (highly correlated with structural features)
-        exclude_prefixes = ['BCUT2D', 'SMR_VSA', 'SlogP_VSA', 'VSA_EState']
-        exclude_exact = {'Ipc', 'Kappa3', 'LabuteASA', 'MolMR'}
+        exclude_prefixes = ['BCUT2D', 'SMR_VSA', 'SlogP_VSA', 'VSA_EState', 'Chi', 'FpDensityMorgan']
+        # Note: LabuteASA kept for regime-ii council compatibility
+        # HeavyAtomMolWt, ExactMolWt removed as redundant with MolWt
+        exclude_exact = {'Ipc', 'Kappa3', 'MolMR', 'HeavyAtomMolWt', 'ExactMolWt'}
         
         self.desc_map = {}
         for name, func in Descriptors.descList:
@@ -24,8 +26,8 @@ class MoleculeFeaturizer:
                 continue
             self.desc_map[name] = func
         
-        # atom inventory
-        self.inventory = ['C', 'O', 'N', 'Cl', 'S', 'F', 'P', 'Br', 'Na', 'I', 'K', 'B', 'Se', 'Ca', 'Li']
+        # atom inventory (commented out - redundant with other features)
+        # self.inventory = ['C', 'O', 'N', 'Cl', 'S', 'F', 'P', 'Br', 'Na', 'I', 'K', 'B', 'Se', 'Ca', 'Li']
 
     def transform(self, smiles_list):
         print(f"Computing features for {len(smiles_list)} molecules...")
@@ -40,11 +42,11 @@ class MoleculeFeaturizer:
         try: return self.enumerator.Canonicalize(mol)
         except: return mol
 
-    def _atom_counts(self, mol):
-        symbols = [a.GetSymbol() for a in mol.GetAtoms()]
-        counts = {f"num_{s}": symbols.count(s) for s in self.inventory}
-        counts["total_atoms"] = len(symbols)
-        return counts
+    # def _atom_counts(self, mol):
+    #     symbols = [a.GetSymbol() for a in mol.GetAtoms()]
+    #     counts = {f"num_{s}": symbols.count(s) for s in self.inventory}
+    #     counts["total_atoms"] = len(symbols)
+    #     return counts
 
     def _mose_features(self, mol):
         motifs = {
@@ -105,14 +107,14 @@ class MoleculeFeaturizer:
         mol = self._get_mol(smiles)
         if not mol: return {}
         feats = {}
-        feats.update(self._atom_counts(mol))
-        feats.update({f"Morgan_{i}": int(b) for i, b in enumerate(AllChem.GetMorganFingerprintAsBitVect(mol, 2, 1024))})
-        feats.update({f"MACCS_{i}": int(b) for i, b in enumerate(MACCSkeys.GenMACCSKeys(mol))})
+        # feats.update(self._atom_counts(mol))  # Commented out - redundant with other features
+        # feats.update({f"Morgan_{i}": int(b) for i, b in enumerate(AllChem.GetMorganFingerprintAsBitVect(mol, 2, 1024))})
+        # feats.update({f"MACCS_{i}": int(b) for i, b in enumerate(MACCSkeys.GenMACCSKeys(mol))})
 
-        try:
-            autos = rdMolDescriptors.CalcAUTOCORR2D(mol)
-            feats.update({f"AUTOCORR2D_{i}": val for i, val in enumerate(autos)})
-        except: pass
+        # try:
+        #     autos = rdMolDescriptors.CalcAUTOCORR2D(mol)
+        #     feats.update({f"AUTOCORR2D_{i}": val for i, val in enumerate(autos)})
+        # except: pass
 
         feats.update(self._mose_features(mol))
         feats.update(self._thermo_proxies(mol))
