@@ -29,68 +29,70 @@ warnings.filterwarnings("ignore")
 # ============================================================================
 
 def get_column_categories(columns):
-    """Classify columns into categories for ablation."""
+    """
+    Classify the featurizer columns into 4 categories.
+    Updated to match regime-i's 176-feature featurizer.
+    
+    Categories:
+    - COMPOSITIONAL: functional groups (fr_*), count-based descriptors
+    - TOPOLOGICAL: MOSE motifs, graph connectivity indices
+    - ENERGETIC: pred_Tm, Abraham parameters
+    - PHYSICOCHEMICAL: Electronic, surface area, partial charge descriptors
+    """
     categories = {
-        'COMPOSITIONAL': [],    # Counts: num_*, fr_*, Num*, *Count, weights
-        'TOPOLOGICAL': [],      # Morgan_*, MACCS_*, mose_*, AUTOCORR2D_*, graph indices
-        'ENERGETIC': [],        # pred_Tm
-        'PHYSICOCHEMICAL': [],  # Properties: abraham_*, BCUT2D_*, MolLogP, TPSA, Chi*, etc.
+        'COMPOSITIONAL': [],
+        'TOPOLOGICAL': [],
+        'ENERGETIC': [],
+        'PHYSICOCHEMICAL': [],
     }
     
-    # Count-based features (go to COMPOSITIONAL)
-    # Includes: atom counts, ring counts, H-bond counts, weight-based features
+    # Count-based features that are COMPOSITIONAL
+    # Note: num_*, total_atoms, HeavyAtomMolWt, ExactMolWt excluded in featurizer.py
     count_features = {
         'NHOHCount', 'NOCount', 'NumAliphaticCarbocycles', 'NumAliphaticHeterocycles',
         'NumAliphaticRings', 'NumAromaticCarbocycles', 'NumAromaticHeterocycles',
         'NumAromaticRings', 'NumHAcceptors', 'NumHDonors', 'NumHeteroatoms',
         'NumRadicalElectrons', 'NumRotatableBonds', 'NumSaturatedCarbocycles',
         'NumSaturatedHeterocycles', 'NumSaturatedRings', 'NumValenceElectrons',
-        'RingCount', 'HeavyAtomCount', 'total_atoms',
-        # Weight-based (sum of atomic weights = count-derived)
-        'MolWt', 'ExactMolWt', 'HeavyAtomMolWt'
+        'RingCount', 'HeavyAtomCount', 'MolWt', 'NumBridgeheadAtoms', 
+        'NumSpiroAtoms', 'NumUnspecifiedAtomStereoCenters', 'NumAmideBonds'
     }
     
-    # Topological features that don't start with standard prefixes
+    # Topological features (Chi*, FpDensityMorgan*, Kappa3 excluded in featurizer.py)
     topological_features = {
-        'FpDensityMorgan1', 'FpDensityMorgan2', 'FpDensityMorgan3',  # fingerprint density
-        'BalabanJ', 'BertzCT',  # graph-theoretic indices
-        'Kappa1', 'Kappa2', 'HallKierAlpha',  # Kappa shape indices
-        # Chi (Kier-Hall molecular connectivity) - graph-based branching descriptors
-        'Chi0', 'Chi0n', 'Chi0v', 'Chi1', 'Chi1n', 'Chi1v',
-        'Chi2n', 'Chi2v', 'Chi3n', 'Chi3v', 'Chi4n', 'Chi4v'
+        'BalabanJ', 'BertzCT', 'Kappa1', 'Kappa2', 'HallKierAlpha', 'Phi'
     }
     
-    # Property-based RDKit descriptors (go to PHYSICOCHEMICAL)
-    # Note: BCUT2D, SMR_VSA, SlogP_VSA, VSA_EState, LabuteASA, MolMR removed from featurizer
-    property_descriptors = {
-        'EState_VSA1', 'EState_VSA10', 'EState_VSA11', 'EState_VSA2', 'EState_VSA3', 
-        'EState_VSA4', 'EState_VSA5', 'EState_VSA6', 'EState_VSA7', 'EState_VSA8', 'EState_VSA9',
-        'FractionCSP3',
-        'MaxAbsEStateIndex', 'MaxAbsPartialCharge', 'MaxEStateIndex', 'MaxPartialCharge', 
-        'MinAbsEStateIndex', 'MinAbsPartialCharge', 'MinEStateIndex', 'MinPartialCharge', 
-        'MolLogP',
-        'PEOE_VSA1', 'PEOE_VSA10', 'PEOE_VSA11', 'PEOE_VSA12', 'PEOE_VSA13',
-        'PEOE_VSA14', 'PEOE_VSA2', 'PEOE_VSA3', 'PEOE_VSA4', 'PEOE_VSA5',
-        'PEOE_VSA6', 'PEOE_VSA7', 'PEOE_VSA8', 'PEOE_VSA9',
-        'TPSA', 'qed'  # drug-likeness score
+    # Physicochemical/Electronic descriptors (MolMR excluded in featurizer.py)
+    # LabuteASA kept for regime-ii council compatibility
+    physicochemical_features = {
+        'MaxAbsEStateIndex', 'MaxEStateIndex', 'MinAbsEStateIndex', 'MinEStateIndex',
+        'MaxAbsPartialCharge', 'MaxPartialCharge', 'MinAbsPartialCharge', 'MinPartialCharge',
+        'qed', 'MolLogP', 'TPSA', 'FractionCSP3', 'LabuteASA'
     }
+    # VSA descriptors (SMR_VSA, SlogP_VSA, VSA_EState, BCUT2D excluded in featurizer.py)
+    physicochemical_prefixes = ['PEOE_VSA', 'EState_VSA']
     
     for i, col in enumerate(columns):
-        # COMPOSITIONAL: atom counts, functional group counts, ring/atom counts
-        if (col.startswith('num_') or col.startswith('fr_') or 
-            col in count_features):
+        # COMPOSITIONAL: functional groups, ring/atom counts (num_* commented out)
+        if (col.startswith('fr_') or col in count_features):
             categories['COMPOSITIONAL'].append(i)
-        # TOPOLOGICAL: fingerprints, motifs, autocorrelation, graph indices
-        elif (col.startswith('Morgan_') or col.startswith('MACCS_') or 
-              col.startswith('mose_') or col.startswith('AUTOCORR2D_') or
-              col in topological_features):
+        
+        # TOPOLOGICAL: MOSE motifs, graph indices (AUTOCORR2D disabled in featurizer)
+        elif col.startswith('mose_') or col in topological_features:
             categories['TOPOLOGICAL'].append(i)
-        # ENERGETIC: pred_Tm only
-        elif col == 'pred_Tm':
+        
+        # ENERGETIC: pred_Tm and Abraham descriptors
+        elif col == 'pred_Tm' or col.startswith('abraham_'):
             categories['ENERGETIC'].append(i)
-        # PHYSICOCHEMICAL: abraham_*, BCUT2D_*, property descriptors
-        elif (col.startswith('abraham_') or col.startswith('BCUT2D_') or 
-              col in property_descriptors):
+        
+        # PHYSICOCHEMICAL: electronic and surface area descriptors
+        elif (col in physicochemical_features or 
+              any(col.startswith(p) for p in physicochemical_prefixes)):
+            categories['PHYSICOCHEMICAL'].append(i)
+        
+        # Catch any remaining as PHYSICOCHEMICAL (most RDKit descriptors)
+        else:
             categories['PHYSICOCHEMICAL'].append(i)
     
     return categories
@@ -288,7 +290,7 @@ def train_and_evaluate(X_train_full, X_test_full, y_train, y_test, kept_indices,
     model = CatBoostRegressor(
         iterations=3000, learning_rate=0.02, depth=8, l2_leaf_reg=5,
         monotone_constraints=mono, early_stopping_rounds=100, 
-        random_seed=SEED, verbose=200
+        random_seed=SEED, verbose=200, thread_count=-1
     )
     model.fit(X_tr, y_tr, eval_set=(X_val, y_val))
     

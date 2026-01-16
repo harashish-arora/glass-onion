@@ -115,7 +115,8 @@ def run_model_training():
     print("Training model...")
     model = CatBoostRegressor(
         iterations=3000, learning_rate=0.02, depth=8, l2_leaf_reg=5,
-        monotone_constraints=mono, early_stopping_rounds=100, random_seed=SEED, verbose=200
+        monotone_constraints=mono, early_stopping_rounds=100, 
+        random_seed=SEED, verbose=200, thread_count=-1
     )
     model.fit(X_tr, y_tr, eval_set=(X_val, y_val))
     joblib.dump(model, os.path.join(MODEL_DIR, "model.joblib"))
