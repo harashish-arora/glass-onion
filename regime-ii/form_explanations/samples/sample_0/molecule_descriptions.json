@@ -1,0 +1,10 @@
+{
+  "solute": {
+    "smiles": "CSCCC(NC(C)=O)C(=O)O",
+    "description": "This molecule, N-acetylmethionine, consists of a linear pentanoic acid backbone substituted at the alpha-carbon with an N-acetyl group and at the gamma-position with a methylthio (thioether) group. Key functional groups include a terminal carboxylic acid, a secondary amide, and a sulfide linkage within the aliphatic side chain. The structure is polar and exhibits significant hydrogen bonding capacity through its hydroxyl and amide NH donors, as well as its carbonyl and sulfur acceptors. It is a small, amphiphilic molecule characterized by the combination of a hydrophobic methylthioethyl side chain and a highly polar, substituted acetic acid headgroup."
+  },
+  "solvent": {
+    "smiles": "ClCCl",
+    "description": "Dichloromethane consists of a single central carbon atom bonded to two chlorine atoms and two hydrogen atoms in a tetrahedral geometry. The molecule features two geminal chloro groups attached to an sp3-hybridized carbon, making it a simple dihalomethane. It is a small, polar molecule characterized by significant dipole moments from the C-Cl bonds, yet it lacks any hydrogen bond donor sites. Its distinctive nature stems from its minimal size and the dense substitution of a single carbon with two electronegative halogens."
+  }
+}

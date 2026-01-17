@@ -1,4 +1,5 @@
-# train_transformer.py
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -6,7 +7,6 @@ from torch.utils.data import DataLoader, TensorDataset
 from sklearn.model_selection import KFold
 import pandas as pd
 import numpy as np
-import os
 import seaborn as sns
 import matplotlib.pyplot as plt
 from tqdm.auto import tqdm

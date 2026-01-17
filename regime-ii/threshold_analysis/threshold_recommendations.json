@@ -1,0 +1,84 @@
+{
+  "summary": {
+    "total_samples": 9137,
+    "min_error": 0.00024990982715089594,
+    "max_error": 3.9714000528005533,
+    "mean_error": 0.4767984705416129,
+    "median_error": 0.32258458878725116,
+    "std_error": 0.48610586054554356
+  },
+  "recommended_thresholds": {
+    "good_threshold": 0.2377681398703302,
+    "bad_threshold": 0.8782789719496841,
+    "strategy": "Percentile",
+    "description": "Moderate: 40th for good, 85th for bad",
+    "expected_good_samples": 3655,
+    "expected_bad_samples": 1371,
+    "expected_middle_samples": 4111
+  },
+  "all_recommendations": [
+    {
+      "strategy": "Percentile",
+      "description": "Conservative: Q1 for good, Q3 for bad",
+      "good_threshold": 0.13881947669530137,
+      "bad_threshold": 0.6490348196827309,
+      "n_good": 2285,
+      "n_bad": 2285,
+      "n_middle": 4567
+    },
+    {
+      "strategy": "Percentile",
+      "description": "Balanced: 33rd for good, 90th for bad",
+      "good_threshold": 0.18685674983405706,
+      "bad_threshold": 1.0897344414003403,
+      "n_good": 3015,
+      "n_bad": 914,
+      "n_middle": 5208
+    },
+    {
+      "strategy": "Percentile",
+      "description": "Moderate: 40th for good, 85th for bad",
+      "good_threshold": 0.2377681398703302,
+      "bad_threshold": 0.8782789719496841,
+      "n_good": 3655,
+      "n_bad": 1371,
+      "n_middle": 4111
+    },
+    {
+      "strategy": "Target Count",
+      "description": "Target 15 good, 15 bad",
+      "good_threshold": 0.0013797927747150052,
+      "bad_threshold": 3.1586672958278985,
+      "n_good": 15,
+      "n_bad": 15,
+      "n_middle": 9107
+    },
+    {
+      "strategy": "Statistical",
+      "description": "Mean \u00b1 0.5/1.0 std",
+      "good_threshold": 0.23374554026884112,
+      "bad_threshold": 0.9629043310871565,
+      "n_good": 3601,
+      "n_bad": 1149,
+      "n_middle": 4387
+    },
+    {
+      "strategy": "Statistical",
+      "description": "Mean \u00b1 1.0 std",
+      "good_threshold": 0.0,
+      "bad_threshold": 0.9629043310871565,
+      "n_good": 0,
+      "n_bad": 1149,
+      "n_middle": 7988
+    },
+    {
+      "strategy": "Current",
+      "description": "enhanced_explain_pipeline.py defaults",
+      "good_threshold": 0.3,
+      "bad_threshold": 1.0,
+      "n_good": 4354,
+      "n_bad": 1081,
+      "n_middle": 3702
+    }
+  ]
+}
