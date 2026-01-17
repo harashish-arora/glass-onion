@@ -45,7 +45,8 @@ def load_hyper_features(df, embed_df):
     X_sign = np.sign(X_reshaped.mean(axis=2))
     X_interact = (X_sign * X_modulus) * T_inv
     
-    return np.hstack([X_raw, X_embed, X_interact, Tm, T_red, T_raw, T_inv])
+    # Note: X_embed (768 latent) removed - keeping only X_interact (24 interaction terms)(if you ever want to add it bac, [X_raw, X_embed, X_interact, Tm, T_red, T_raw, T_inv])
+    return np.hstack([X_raw, X_interact, Tm, T_red, T_raw, T_inv])
 
 def generate_test_hyper_features(df_test):
     # Load feature stores
@@ -86,7 +87,8 @@ def generate_test_hyper_features(df_test):
     
     X_raw = np.hstack([sol_raw.loc[df_test['Solute']].values, solv_raw.loc[df_test['Solvent']].values])
     
-    return np.hstack([X_raw, X_embed, X_interact, Tm, T_red, T, T_inv])
+    # Note: X_embed (768 latent) removed - keeping only X_interact (24 interaction terms)
+    return np.hstack([X_raw, X_interact, Tm, T_red, T, T_inv])
 
 def run_model_training():
     os.makedirs(MODEL_DIR, exist_ok=True)

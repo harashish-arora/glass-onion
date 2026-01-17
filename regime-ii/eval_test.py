@@ -67,8 +67,8 @@ def run_evaluation():
     # Base Raw Descriptors
     X_raw = np.hstack([sol_raw.loc[df_test['Solute']].values, solv_raw.loc[df_test['Solvent']].values])
 
-    # Final Stack: [Raw, Embed, Interact, Tm, T_red, T, T_inv]
-    X_full = np.hstack([X_raw, X_embed, X_interact, Tm, T_red, T, T_inv])
+    # Final Stack: [Raw, Interact, Tm, T_red, T, T_inv] - X_embed removed
+    X_full = np.hstack([X_raw, X_interact, Tm, T_red, T, T_inv])
 
     # 6. Predict
     print("Performing final predictions...")

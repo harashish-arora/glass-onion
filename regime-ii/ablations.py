@@ -21,6 +21,7 @@ TEST_FILE = os.path.join(DATA_DIR, "test.csv")
 OOF_EMBED_FILE = "train_embeddings.csv"
 TRANSFORMER_PATH = "transformer.pth"
 SEED = 42
+SEEDS = [42, 101, 123, 456, 789]  # For baseline variance estimation
 
 warnings.filterwarnings("ignore")
 
@@ -142,8 +143,8 @@ def build_feature_matrix_with_labels(df, embed_df, sol_raw, solv_raw):
     X_interact = (X_sign * X_modulus) * T_inv
     n_interact = X_interact.shape[1]
     
-    # Stack all features
-    X_full = np.hstack([X_raw, X_embed, X_interact, Tm, T_red, T_raw, T_inv])
+    # Stack all features - Z_AB removed, keeping only X_interact
+    X_full = np.hstack([X_raw, X_interact, Tm, T_red, T_raw, T_inv])
     
     # Calculate indices for each feature group
     idx = 0
@@ -153,8 +154,7 @@ def build_feature_matrix_with_labels(df, embed_df, sol_raw, solv_raw):
     }
     idx += n_sol + n_solv
     
-    feature_info['Z_AB'] = {'start': idx, 'end': idx + n_embed}
-    idx += n_embed
+    # Note: Z_AB removed from feature stack
     
     feature_info['I'] = {'start': idx, 'end': idx + n_interact}
     idx += n_interact
@@ -223,12 +223,60 @@ def generate_test_features(df_test, sol_raw, solv_raw):
     # Raw features
     X_raw = np.hstack([sol_raw.loc[df_test['Solute']].values, solv_raw.loc[df_test['Solvent']].values])
     
-    return np.hstack([X_raw, X_embed, X_interact, Tm, T_red, T, T_inv])
+    # Z_AB removed - keeping only X_interact
+    return np.hstack([X_raw, X_interact, Tm, T_red, T, T_inv])
 
 
 # ============================================================================
 # ABLATION EXPERIMENTS
 # ============================================================================
+
+def run_baseline_multiseed(X_train_full, X_test_full, y_train, y_test, all_indices, feature_info):
+    """Run FULL MODEL with multiple seeds to estimate variance."""
+    print(f"\n{'='*60}")
+    print(f"BASELINE VARIANCE ESTIMATION (5 seeds)")
+    print(f"{'='*60}")
+    
+    r2_scores = []
+    rmse_scores = []
+    
+    for seed in SEEDS:
+        print(f"  Seed {seed}...", end=" ", flush=True)
+        
+        # Variance pruning
+        selector = VarianceThreshold(threshold=0.0001)
+        X_train_pruned = selector.fit_transform(X_train_full[:, all_indices])
+        X_test_pruned = selector.transform(X_test_full[:, all_indices])
+        
+        # Monotone constraints
+        mono = get_monotone_constraints(X_train_full.shape[1], feature_info, all_indices)
+        mono_pruned = [mono[i] for i in range(len(all_indices)) if selector.get_support()[i]]
+        
+        # Train/val split
+        X_tr, X_val, y_tr, y_val = train_test_split(
+            X_train_pruned, y_train, test_size=0.05, random_state=seed
+        )
+        
+        model = CatBoostRegressor(
+            iterations=3000, learning_rate=0.02, depth=8, l2_leaf_reg=5,
+            monotone_constraints=mono_pruned, early_stopping_rounds=100,
+            random_seed=seed, verbose=0, thread_count=-1
+        )
+        model.fit(X_tr, y_tr, eval_set=(X_val, y_val))
+        
+        preds = model.predict(X_test_pruned)
+        r2 = r2_score(y_test, preds)
+        rmse = np.sqrt(mean_squared_error(y_test, preds))
+        r2_scores.append(r2)
+        rmse_scores.append(rmse)
+        print(f"R²={r2:.4f}, RMSE={rmse:.4f}")
+    
+    r2_mean, r2_std = np.mean(r2_scores), np.std(r2_scores)
+    rmse_mean, rmse_std = np.mean(rmse_scores), np.std(rmse_scores)
+    
+    print(f"\n  BASELINE: R² = {r2_mean:.4f} ± {r2_std:.4f}, RMSE = {rmse_mean:.4f} ± {rmse_std:.4f}")
+    
+    return r2_mean, r2_std, rmse_mean, rmse_std
 
 def get_monotone_constraints(n_features, feature_info, kept_indices):
     """
@@ -330,7 +378,7 @@ def run_ablation_study():
     print(f"\nTotal features: {n_features}")
     print(f"x_A: {feature_info['x_A']['start']}-{feature_info['x_A']['end']} ({feature_info['x_A']['end'] - feature_info['x_A']['start']} features)")
     print(f"x_B: {feature_info['x_B']['start']}-{feature_info['x_B']['end']} ({feature_info['x_B']['end'] - feature_info['x_B']['start']} features)")
-    print(f"Z_AB: {feature_info['Z_AB']['start']}-{feature_info['Z_AB']['end']} ({feature_info['Z_AB']['end'] - feature_info['Z_AB']['start']} features)")
+    # Z_AB removed from model
     print(f"I: {feature_info['I']['start']}-{feature_info['I']['end']} ({feature_info['I']['end'] - feature_info['I']['start']} features)")
     print(f"f(T): {feature_info['f_T']['start']}-{feature_info['f_T']['end']} (4 features: Tm, T_red, T, T_inv)")
     
@@ -347,19 +395,27 @@ def run_ablation_study():
         return indices
     
     # =========================================================================
-    # FULL MODEL (Baseline) - SKIPPED (run separately via train.py)
+    # BASELINE VARIANCE ESTIMATION (5 seeds)
     # =========================================================================
-    # results.append(train_and_evaluate(
-    #     X_train_full, X_test_full, y_train, y_test,
-    #     all_indices, feature_info, "FULL MODEL (Original)"
-    # ))
+    baseline_r2_mean, baseline_r2_std, baseline_rmse_mean, baseline_rmse_std = run_baseline_multiseed(
+        X_train_full, X_test_full, y_train, y_test, all_indices, feature_info
+    )
+    
+    # =========================================================================
+    # FULL MODEL (Baseline - single seed for comparison)
+    # =========================================================================
+    results.append(train_and_evaluate(
+        X_train_full, X_test_full, y_train, y_test,
+        all_indices, feature_info, "FULL MODEL (380 features)"
+    ))
+    baseline_rmse = results[0]['RMSE']
     
     # =========================================================================
     # REMOVE EXPERIMENTS (Leave-One-Out)
     # =========================================================================
     
-    # 1. Remove x_A and x_B entirely (keep only Z_AB, I, f_T)
-    kept = list(range(feature_info['Z_AB']['start'], n_features))
+    # 1. Remove x_A and x_B entirely (keep only I, f_T)
+    kept = list(range(feature_info['I']['start'], n_features))
     results.append(train_and_evaluate(
         X_train_full, X_test_full, y_train, y_test,
         kept, feature_info, "REMOVE: x_A, x_B Entirely"
@@ -374,13 +430,8 @@ def run_ablation_study():
             kept, feature_info, f"REMOVE: Category {category}"
         ))
     
-    # 3. Remove Z_A->B (Latent)
-    remove_indices = set(range(feature_info['Z_AB']['start'], feature_info['Z_AB']['end']))
-    kept = [i for i in all_indices if i not in remove_indices]
-    results.append(train_and_evaluate(
-        X_train_full, X_test_full, y_train, y_test,
-        kept, feature_info, "REMOVE: Z_A->B (Latent)"
-    ))
+    # 3. Z_AB removed from model - skip this ablation
+    # (Z_AB is no longer in the feature stack)
     
     # 4. Remove I (Interaction Terms)
     remove_indices = set(range(feature_info['I']['start'], feature_info['I']['end']))
@@ -415,12 +466,12 @@ def run_ablation_study():
             kept, feature_info, f"ONLY: Category {category}"
         ))
     
-    # ONLY Z_A->B
-    kept = list(range(feature_info['Z_AB']['start'], feature_info['Z_AB']['end'])) + [T_idx]
-    results.append(train_and_evaluate(
-        X_train_full, X_test_full, y_train, y_test,
-        kept, feature_info, "ONLY: Z_A->B (Latent)"
-    ))
+    # ONLY Z_A->B - skipped (Z_AB removed from model)
+    # kept = list(range(feature_info['Z_AB']['start'], feature_info['Z_AB']['end'])) + [T_idx]
+    # results.append(train_and_evaluate(
+    #     X_train_full, X_test_full, y_train, y_test,
+    #     kept, feature_info, "ONLY: Z_A->B (Latent)"
+    # ))
     
     # ONLY I (Interaction Terms)
     kept = list(range(feature_info['I']['start'], feature_info['I']['end'])) + [T_idx]
@@ -440,10 +491,30 @@ def run_ablation_study():
     # SAVE RESULTS
     # =========================================================================
     df_results = pd.DataFrame(results)
+    df_results['Delta_RMSE'] = df_results['RMSE'] - baseline_rmse
+    df_results['Delta_R2'] = df_results['R2'] - results[0]['R2']
+    
     df_results.to_csv("comprehensive_ablation_results.csv", index=False)
     print("\n" + "="*60)
-    print("Report saved to comprehensive_ablation_results.csv")
+    print("ABLATION RESULTS SUMMARY")
+    print("="*60)
     print(df_results.to_string(index=False))
+    
+    print(f"\n--- Baseline Variance (5 seeds) ---")
+    print(f"R² = {baseline_r2_mean:.4f} ± {baseline_r2_std:.4f}")
+    print(f"RMSE = {baseline_rmse_mean:.4f} ± {baseline_rmse_std:.4f}")
+    print(f"\n(Compare ΔRMSE against ±{baseline_rmse_std:.4f} to assess significance)")
+    
+    print(f"\n--- Key Insights ---")
+    print(f"Baseline (seed={SEED}): RMSE = {baseline_rmse:.6f}")
+    print("\nImpact when removing each component (ΔRMSE):")
+    for _, row in df_results.iterrows():
+        if row['Experiment'].startswith('REMOVE:'):
+            sig = "*" if abs(row['Delta_RMSE']) > 2*baseline_rmse_std else ""
+            print(f"  {row['Experiment']}: ΔRMSE = {row['Delta_RMSE']:+.6f}{sig}")
+    
+    print(f"\n* = exceeds 2σ baseline variance (likely significant)")
+    print(f"\nResults saved to: comprehensive_ablation_results.csv")
     print("="*60)
     
     return df_results
