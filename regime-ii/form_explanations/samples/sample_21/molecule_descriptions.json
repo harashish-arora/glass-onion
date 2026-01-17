@@ -1,0 +1,10 @@
+{
+  "solute": {
+    "smiles": "C=CC(=O)NC(C)(C)C",
+    "description": "This molecule, N-tert-butylacrylamide, features a vinyl group conjugated to a secondary amide that is N-substituted with a bulky tert-butyl group. The core structure is defined by an alpha,beta-unsaturated carbonyl system, which serves as a planar, reactive center attached to a quaternary carbon branching point. It is a small, polar molecule possessing one hydrogen bond donor (N-H) and one hydrogen bond acceptor (C=O), with its character significantly influenced by the localized steric hindrance and hydrophobicity of the three terminal methyl groups."
+  },
+  "solvent": {
+    "smiles": "ClCCl",
+    "description": "This molecule, dichloromethane, consists of a single central carbon atom bonded to two chlorine atoms and two hydrogen atoms in a tetrahedral geometry. It is a geminal dihalide, characterized by the substitution of two chloro groups onto the same methane-derived carbon. The molecule is small and exhibits significant molecular polarity due to the net dipole moment created by the electronegative chlorine atoms. While it lacks hydrogen bond donor sites, the lone pairs on the chlorine atoms allow it to function as a weak hydrogen bond acceptor."
+  }
+}

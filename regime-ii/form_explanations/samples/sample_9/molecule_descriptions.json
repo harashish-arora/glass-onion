@@ -1,0 +1,10 @@
+{
+  "solute": {
+    "smiles": "O=C1CC(c2ccc(O)cc2)Oc2cc(O)cc(O)c21",
+    "description": "This molecule is a flavanone, specifically 4',5,7-trihydroxyflavanone, consisting of a fused bicyclic benzopyran-4-one core with a phenolic substituent at the C2 position. Its key functional groups include three phenolic hydroxyl groups located at the 5, 7, and 4' positions, along with a ketone carbonyl at the C4 position of the heterocyclic ring. The structure is moderately sized (C15H12O5) and highly polar, possessing extensive hydrogen bonding capacity as both a donor (via three hydroxyls) and an acceptor (via the carbonyl and ethereal oxygens). It is characterized by the saturated C2-C3 bond in the central pyranone ring, which creates a chiral center at C2 and distinguishes it from its unsaturated flavone analogs."
+  },
+  "solvent": {
+    "smiles": "CCCCCC",
+    "description": "This molecule is a linear, six-carbon saturated hydrocarbon chain with no branching or cyclic components. It consists entirely of carbon-carbon and carbon-hydrogen single bonds, lacking any functional groups or heteroatoms. Due to its purely aliphatic composition, the structure is nonpolar and possesses no capacity for hydrogen bonding as either a donor or an acceptor. Its distinctive feature is its simple, flexible backbone, representing a small-sized straight-chain alkane with the molecular formula C\u2086H\u2081\u2084."
+  }
+}

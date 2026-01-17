@@ -1,0 +1,10 @@
+{
+  "solute": {
+    "smiles": "COc1ccc2c(c1)c(CC(=O)O)c(C)n2C(=O)c1ccc(Cl)cc1",
+    "description": "This molecule features an indole core substituted at the 1, 2, 3, and 5 positions, specifically an N-acylated indole with a 4-chlorobenzoyl group attached to the nitrogen. Key functional groups include a methoxy group at position 5, a methyl group at position 2, and an acetic acid moiety (carboxymethyl group) at position 3 of the indole ring. The structure is amphiphilic, possessing a highly polar carboxylic acid group capable of strong hydrogen bonding alongside two hydrophobic aromatic rings and a halogenated aryl substituent. This medium-sized molecule is characterized by its rigid bicyclic scaffold linked via an amide bond to a chlorinated phenyl ring, creating a bulky system with distinct acidic and lipophilic domains."
+  },
+  "solvent": {
+    "smiles": "CCCCCC",
+    "description": "This molecule is a linear, unbranched alkane chain consisting of six sp3-hybridized carbon atoms. It lacks functional groups or heteroatoms, being composed entirely of saturated carbon-carbon and carbon-hydrogen single bonds. The structure is highly nonpolar and lacks any capacity for hydrogen bonding as either a donor or an acceptor. Its character is defined by its hydrophobic nature and a relatively small molecular size typical of short-chain aliphatic hydrocarbons."
+  }
+}

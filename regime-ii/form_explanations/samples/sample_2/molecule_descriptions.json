@@ -1,0 +1,10 @@
+{
+  "solute": {
+    "smiles": "CCn1cc(C(=O)O)c(=O)c2cc(F)c(N3CCN(C)CC3)cc21",
+    "description": "This molecule features a bicyclic quinolone core consisting of a fused benzene and a nitrogen-containing ring, substituted with an N-ethyl group and a C-7 N-methylpiperazine ring. Key functional groups include a C-3 carboxylic acid, a C-4 ketone, and a C-6 fluorine atom on the aromatic ring. The structure is relatively large and rigid, exhibiting significant polarity and hydrogen bonding capacity through its carboxyl, carbonyl, and tertiary amine groups. The combination of the halogenated aromatic system and the basic piperazine moiety gives the molecule a distinct amphoteric character."
+  },
+  "solvent": {
+    "smiles": "CCCCCCCCO",
+    "description": "This molecule, 1-octanol, consists of a linear, unbranched eight-carbon aliphatic chain. It features a single primary hydroxyl group (-OH) covalently bonded to the terminal carbon atom (C1 position). The structure is characterized by a large nonpolar hydrophobic region and a small polar head capable of both donating and accepting hydrogen bonds. Its distinctive medium-chain length and terminal functionalization make it a classic amphiphilic primary alcohol."
+  }
+}

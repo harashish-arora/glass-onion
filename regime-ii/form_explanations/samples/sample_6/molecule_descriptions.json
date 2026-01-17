@@ -1,0 +1,10 @@
+{
+  "solute": {
+    "smiles": "O=[N+]([O-])c1ccc(S(=O)(=O)Nc2nccs2)cc1",
+    "description": "This molecule is a sulfonamide derivative consisting of a central benzene ring para-substituted with a nitro group and a sulfonamide bridge linked to a 1,3-thiazole heterocycle. The core structure features two aromatic systems\u2014a 4-nitrophenyl group and a 2-aminothiazole moiety\u2014connected by a sulfur-nitrogen bond. It is a medium-sized, highly polar molecule characterized by strong electron-withdrawing groups ($NO_2$ and $SO_2$) and multiple sites for intermolecular interactions, including a hydrogen bond donor at the sulfonamide nitrogen and several hydrogen bond acceptors (nitro oxygens, sulfonyl oxygens, and thiazole nitrogen/sulfur). The combination of the nitro-substituted phenyl ring and the sulfur-containing heterocycle creates a rigid, electron-deficient framework with significant dipole moments."
+  },
+  "solvent": {
+    "smiles": "CCCCCCCCO",
+    "description": "This molecule consists of a linear, unbranched eight-carbon aliphatic chain with no rings or branching. It features a single primary hydroxyl group (-OH) covalently bonded to the terminal carbon atom, classifying it as a primary alcohol. The structure is amphiphilic, characterized by a large non-polar hydrophobic tail and a small polar head capable of both donating and accepting hydrogen bonds. Its distinctive nature arises from the balance between the significant steric bulk of the octyl chain and the localized polarity of the terminal functional group."
+  }
+}

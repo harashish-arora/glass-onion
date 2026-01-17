@@ -1,0 +1,10 @@
+{
+  "solute": {
+    "smiles": "COC(=O)C=Cc1ccc(O)cc1",
+    "description": "This molecule consists of a benzene ring substituted at the 1 and 4 positions with a methyl propenoate group and a hydroxyl group, respectively. The core features an alpha,beta-unsaturated methyl ester conjugated to a phenol, creating a rigid, planar, and extended pi-electron system. It is a small molecule with moderate polarity, characterized by its capacity to act as a hydrogen bond donor via the phenolic group and a hydrogen bond acceptor via the ester carbonyl and hydroxyl oxygens."
+  },
+  "solvent": {
+    "smiles": "CCCCCC",
+    "description": "The molecule consists of a linear, unbranched chain of six carbon atoms, forming a saturated aliphatic backbone. It lacks functional groups and heteroatoms, containing only single C-C and C-H bonds characteristic of an alkane. The structure is entirely nonpolar and possesses no hydrogen bond donors or acceptors. Its small molecular size and simple hydrocarbon chain define its character as a basic hydrophobic unit."
+  }
+}

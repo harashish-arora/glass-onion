@@ -1,0 +1,10 @@
+{
+  "solute": {
+    "smiles": "CCn1cc(C(=O)O)c(=O)c2cnc(N3CCNCC3)nc21",
+    "description": "This molecule features a fused 1,8-naphthyridine bicyclic core, specifically structured as a 4-oxo-1,4-dihydro-1,8-naphthyridine-3-carboxylic acid scaffold. It is substituted with an ethyl group at the N1 position and a basic piperazine ring at the C7 position. The structure is moderately sized and highly polar, containing multiple hydrogen bond donors (carboxylic acid and the secondary amine of the piperazine) and several hydrogen bond acceptors (carbonyl groups and heterocyclic nitrogens). Its distinctive character arises from the combination of a rigid, electron-deficient heterocycle with both acidic and basic functional groups, giving the molecule a zwitterionic nature."
+  },
+  "solvent": {
+    "smiles": "CCCCCCCCO",
+    "description": "This molecule, 1-octanol, consists of a linear, unbranched eight-carbon aliphatic chain. It features a single primary hydroxyl group (-OH) covalently bonded to the terminal carbon atom, classifying it as a primary alcohol. The structure is characterized by a large nonpolar hydrophobic tail and a small polar head capable of both donating and accepting hydrogen bonds. Its distinctive nature lies in its amphiphilic balance, where the long hydrocarbon chain dominates the molecular volume and significantly limits the influence of the terminal polar group."
+  }
+}

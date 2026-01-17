@@ -1,0 +1,10 @@
+{
+  "solute": {
+    "smiles": "COc1ccc2c(c1)c(CC(=O)O)c(C)n2C(=O)c1ccc(Cl)cc1",
+    "description": "This molecule features an indole core substituted at the 1, 2, 3, and 5 positions, characterized by an $N$-linked $p$-chlorobenzoyl group and a fused bicyclic ring system. Key functional groups include a carboxymethyl (acetic acid) moiety at the 3-position, a methyl group at the 2-position, and a methoxy group at the 5-position of the indole scaffold. It is a moderately sized organic molecule with a rigid, hydrophobic aromatic framework balanced by a highly polar carboxylic acid group that provides strong hydrogen-bond donation and acceptance. The presence of a chlorine atom on the benzoyl ring and multiple carbonyl/ether oxygens further contributes to its specific electronic profile and hydrogen-bonding capacity."
+  },
+  "solvent": {
+    "smiles": "CCCCCCC",
+    "description": "This molecule is a linear, unbranched alkane consisting of a continuous chain of seven carbon atoms. It is a fully saturated hydrocarbon containing only single carbon-carbon and carbon-hydrogen bonds, with no functional groups or heteroatoms present. The structure is entirely non-polar and lacks any capacity for hydrogen bonding as it contains no hydrogen bond donors or acceptors. Its distinctive character is defined by its medium-length aliphatic chain and uniform hydrophobic nature."
+  }
+}
