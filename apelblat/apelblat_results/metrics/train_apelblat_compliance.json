@@ -1,0 +1,7 @@
+{
+  "label": "train",
+  "rmse_tolerance": 0.216,
+  "pct_within_tolerance": 58.9,
+  "mean_shape_correlation": 0.9891,
+  "pct_both_criteria": 58.84
+}

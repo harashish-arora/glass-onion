@@ -1,0 +1,7 @@
+{
+  "label": "test",
+  "rmse_tolerance": 0.6775,
+  "pct_within_tolerance": 99.24,
+  "mean_shape_correlation": 0.9862,
+  "pct_both_criteria": 98.85
+}
