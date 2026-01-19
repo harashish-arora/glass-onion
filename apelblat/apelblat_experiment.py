@@ -61,7 +61,7 @@ class ExperimentConfig:
     min_exp_apelblat_r2: float = 0.8  # Minimum R² for experimental Apelblat fit
     
     # Quality stratification
-    stratify_by_quality: bool = True  # Enable RMSE-based filtering
+    stratify_by_quality: bool =  False # Enable RMSE-based filtering
     max_rmse_known: float = 0.5  # Maximum RMSE at known temps to include pair
     
     # Synthetic temperature settings
@@ -275,6 +275,12 @@ class PairAnalysisResult:
     curve_mean_deviation: float  # Mean |pred_apelblat - exp_apelblat|
     curve_within_tolerance: bool  # Is max_deviation <= model_rmse?
     pct_points_within_tolerance: float  # % of temp points within tolerance
+    
+    # ========== Prediction Bias Analysis ==========
+    mean_signed_error: float  # Mean(pred - exp), positive = over-prediction
+    pct_over_prediction: float  # % of points where pred > exp
+    bias_category: str  # 'Over', 'Under', or 'Balanced'
+    curve_position: str  # 'Above' (all pred > exp), 'Below' (all pred < exp), 'Intersects'
     
     # Original data
     original_temps: np.ndarray
@@ -511,6 +517,29 @@ class ApelblatExperiment:
         pred_range = preds_orig.max() - preds_orig.min()
         sensitivity_ratio = pred_range / max(0.01, exp_range)
         
+        # Prediction Bias Analysis
+        signed_errors = preds_orig - logs_exp
+        mean_signed_error = np.mean(signed_errors)
+        pct_over_prediction = np.mean(signed_errors > 0) * 100
+        
+        # Classify bias: Over (>60% over), Under (<40% over), Balanced (40-60%)
+        if pct_over_prediction > 60:
+            bias_category = "Over"
+        elif pct_over_prediction < 40:
+            bias_category = "Under"
+        else:
+            bias_category = "Balanced"
+        
+        # Curve Position Analysis: Does predicted curve lie entirely above/below experimental?
+        all_above = np.all(signed_errors > 0)  # All predictions > experimental
+        all_below = np.all(signed_errors < 0)  # All predictions < experimental
+        if all_above:
+            curve_position = "Above"
+        elif all_below:
+            curve_position = "Below"
+        else:
+            curve_position = "Intersects"
+        
         trend_score = (
             0.3 * max(0, r2_known) +
             0.3 * max(0, r2_synthetic) +
@@ -543,6 +572,9 @@ class ApelblatExperiment:
             # RMSE Tolerance Analysis
             curve_max_deviation=curve_max_deviation, curve_mean_deviation=curve_mean_deviation,
             curve_within_tolerance=curve_within_tolerance, pct_points_within_tolerance=pct_points_within_tolerance,
+            # Prediction Bias Analysis
+            mean_signed_error=mean_signed_error, pct_over_prediction=pct_over_prediction, 
+            bias_category=bias_category, curve_position=curve_position,
             original_temps=temps, original_logs=logs_exp, original_preds=preds_orig
         )
     
@@ -588,6 +620,9 @@ class ApelblatExperiment:
         self.save_split_results()
         self.generate_split_summary()
         
+        # Generate plots
+        self.generate_plots()
+        
         print("\n" + "="*70)
         print("EXPERIMENT COMPLETE")
         print(f"Results saved to: {self.output_dir}")
@@ -620,6 +655,18 @@ class ApelblatExperiment:
         # Known temperature metrics
         known_rmses = [r.rmse_known for r in results]
         known_r2s = [r.r2_known_pred_vs_exp for r in results]
+        
+        # Prediction Bias metrics
+        signed_errors = [r.mean_signed_error for r in results]
+        pct_overs = [r.pct_over_prediction for r in results]
+        n_over = sum(1 for r in results if r.bias_category == "Over")
+        n_under = sum(1 for r in results if r.bias_category == "Under")
+        n_balanced = sum(1 for r in results if r.bias_category == "Balanced")
+        
+        # Curve Position metrics (completely above/below/intersects)
+        n_above = sum(1 for r in results if r.curve_position == "Above")
+        n_below = sum(1 for r in results if r.curve_position == "Below")
+        n_intersects = sum(1 for r in results if r.curve_position == "Intersects")
         
         return {
             "label": label,
@@ -658,6 +705,30 @@ class ApelblatExperiment:
                 "mean_r2": round(np.mean(extrap_r2s), 4) if extrap_r2s else None,
                 "std_r2": round(np.std(extrap_r2s), 4) if extrap_r2s else None,
                 "n_pairs": len(extrap_r2s)
+            },
+            
+            # Prediction Bias
+            "prediction_bias": {
+                "mean_signed_error": round(np.mean(signed_errors), 4),
+                "std_signed_error": round(np.std(signed_errors), 4),
+                "mean_pct_over_prediction": round(np.mean(pct_overs), 2),
+                "n_over_biased": n_over,
+                "n_under_biased": n_under,
+                "n_balanced": n_balanced,
+                "pct_over_biased": round(n_over / n * 100, 2),
+                "pct_under_biased": round(n_under / n * 100, 2),
+                "pct_balanced": round(n_balanced / n * 100, 2)
+            },
+            
+            # Curve Position (no intersection analysis)
+            "curve_position": {
+                "n_completely_above": n_above,
+                "n_completely_below": n_below,
+                "n_intersects": n_intersects,
+                "pct_completely_above": round(n_above / n * 100, 2),
+                "pct_completely_below": round(n_below / n * 100, 2),
+                "pct_intersects": round(n_intersects / n * 100, 2),
+                "pct_no_intersection": round((n_above + n_below) / n * 100, 2)
             }
         }
     
@@ -681,6 +752,10 @@ class ApelblatExperiment:
                     "Shape_Correlation": r.shape_correlation,
                     "Curve_Max_Deviation": r.curve_max_deviation,
                     "Curve_Within_Tolerance": r.curve_within_tolerance,
+                    "Mean_Signed_Error": r.mean_signed_error,
+                    "Pct_Over_Prediction": r.pct_over_prediction,
+                    "Bias_Category": r.bias_category,
+                    "Curve_Position": r.curve_position,
                     "Category": r.category,
                 })
         
@@ -760,6 +835,12 @@ class ApelblatExperiment:
             
             with open(modular_dir / f"{label}_holdout_extrapolation.json", "w") as f:
                 json.dump({"label": label, **metrics["holdout_extrapolation"]}, f, indent=2)
+            
+            with open(modular_dir / f"{label}_prediction_bias.json", "w") as f:
+                json.dump({"label": label, **metrics["prediction_bias"]}, f, indent=2)
+            
+            with open(modular_dir / f"{label}_curve_position.json", "w") as f:
+                json.dump({"label": label, **metrics["curve_position"]}, f, indent=2)
         
         # Save final scores
         with open(modular_dir / "final_scores.json", "w") as f:
@@ -794,7 +875,22 @@ class ApelblatExperiment:
             print(f"\n📉 HOLDOUT EXTRAPOLATION ({metrics['holdout_extrapolation']['n_pairs']} pairs)")
             if metrics['holdout_extrapolation']['mean_r2']:
                 print(f"   Mean R²:              {metrics['holdout_extrapolation']['mean_r2']:.4f} ± {metrics['holdout_extrapolation']['std_r2']:.4f}")
-        
+            
+            print(f"\n⚖️  PREDICTION BIAS ANALYSIS")
+            bias = metrics['prediction_bias']
+            print(f"   Mean Signed Error:    {bias['mean_signed_error']:+.4f} (+ = over, - = under)")
+            print(f"   Std Signed Error:     {bias['std_signed_error']:.4f}")
+            print(f"   Mean % Over-Pred:     {bias['mean_pct_over_prediction']:.1f}%")
+            print(f"   Pairs Over-Biased:    {bias['n_over_biased']} ({bias['pct_over_biased']:.1f}%)")
+            print(f"   Pairs Under-Biased:   {bias['n_under_biased']} ({bias['pct_under_biased']:.1f}%)")
+            print(f"   Pairs Balanced:       {bias['n_balanced']} ({bias['pct_balanced']:.1f}%)")
+            
+            print(f"\n📈 CURVE POSITION ANALYSIS (no intersection test)")
+            pos = metrics['curve_position']
+            print(f"   Completely Above:     {pos['n_completely_above']} ({pos['pct_completely_above']:.1f}%)")
+            print(f"   Completely Below:     {pos['n_completely_below']} ({pos['pct_completely_below']:.1f}%)")
+            print(f"   Intersects:           {pos['n_intersects']} ({pos['pct_intersects']:.1f}%)")
+            print(f"   NO INTERSECTION:      {pos['pct_no_intersection']:.1f}% ← Systematic bias indicator")
         print(f"\n{'='*70}")
         print("FINAL COMBINED SCORES")
         print("="*70)
@@ -805,8 +901,249 @@ class ApelblatExperiment:
         print("="*70)
 
     def generate_plots(self):
+        """Generate comprehensive visualization plots."""
         print("\nGenerating plots...")
-        pass
+        
+        plot_dir = self.output_dir / "plots"
+        plot_dir.mkdir(exist_ok=True)
+        
+        # Combine results with labels for plotting
+        all_results = []
+        for source, results in [("train", self.train_results), ("test", self.test_results)]:
+            for r in results:
+                all_results.append((source, r))
+        
+        if not all_results:
+            print("  ⚠ No results to plot")
+            return
+        
+        # ============================================================
+        # 1. Sample Apelblat Curve Comparison Plots
+        # ============================================================
+        print("  → Generating sample pair plots...")
+        sample_dir = plot_dir / "sample_pairs"
+        sample_dir.mkdir(exist_ok=True)
+        
+        # Select top N pairs by shape correlation for each dataset
+        for source in ["train", "test"]:
+            source_results = [r for s, r in all_results if s == source]
+            if not source_results:
+                continue
+            
+            # Sort by shape correlation (best first)
+            sorted_results = sorted(source_results, key=lambda x: x.shape_correlation, reverse=True)
+            samples = sorted_results[:min(self.config.num_sample_plots, len(sorted_results))]
+            
+            for i, r in enumerate(samples):
+                fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+                
+                # Left: Experimental vs Predicted at Known Temps
+                ax1 = axes[0]
+                ax1.scatter(r.original_temps, r.original_logs, s=80, c='blue', label='Experimental', zorder=3)
+                ax1.scatter(r.original_temps, r.original_preds, s=80, c='red', marker='x', label='Model Predictions', zorder=3)
+                
+                # Plot Apelblat curves
+                if r.exp_fit_success:
+                    t_range = np.linspace(r.original_temps.min() - 5, r.original_temps.max() + 5, 100)
+                    exp_curve = apelblat_equation(t_range, *r.exp_params)
+                    ax1.plot(t_range, exp_curve, 'b-', lw=2, alpha=0.7, label='Exp. Apelblat Fit')
+                if r.pred_fit_success:
+                    pred_curve = apelblat_equation(t_range, *r.pred_params)
+                    ax1.plot(t_range, pred_curve, 'r--', lw=2, alpha=0.7, label='Pred. Apelblat Fit')
+                
+                ax1.set_xlabel('Temperature (K)', fontsize=12)
+                ax1.set_ylabel('LogS', fontsize=12)
+                ax1.set_title(f'Known Temps: R²={r.r2_known_pred_vs_exp:.3f}, RMSE={r.rmse_known:.3f}', fontsize=11)
+                ax1.legend(fontsize=9)
+                ax1.grid(True, alpha=0.3)
+                
+                # Right: Synthetic Temperature Comparison
+                ax2 = axes[1]
+                if len(r.synthetic_temps) > 0:
+                    ax2.scatter(r.synthetic_temps, r.synthetic_apelblat, s=60, c='blue', alpha=0.7, label='Exp. Apelblat (extrapolated)')
+                    ax2.scatter(r.synthetic_temps, r.synthetic_preds, s=60, c='red', marker='x', alpha=0.7, label='Model Predictions')
+                    ax2.set_title(f'Synthetic Temps: R²={r.r2_synthetic_vs_apelblat:.3f}', fontsize=11)
+                else:
+                    ax2.text(0.5, 0.5, 'No synthetic temps', ha='center', va='center', transform=ax2.transAxes)
+                
+                ax2.set_xlabel('Temperature (K)', fontsize=12)
+                ax2.set_ylabel('LogS', fontsize=12)
+                ax2.legend(fontsize=9)
+                ax2.grid(True, alpha=0.3)
+                
+                plt.suptitle(f'{source.upper()} #{i+1}: Shape Corr={r.shape_correlation:.4f}', fontsize=13, fontweight='bold')
+                plt.tight_layout()
+                plt.savefig(sample_dir / f"{source}_sample_{i+1:02d}.png", dpi=150, bbox_inches='tight')
+                plt.close()
+        
+        # ============================================================
+        # 2. Shape Correlation Distribution
+        # ============================================================
+        print("  → Generating shape correlation histogram...")
+        fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+        
+        for idx, source in enumerate(["train", "test"]):
+            source_results = [r for s, r in all_results if s == source]
+            if not source_results:
+                continue
+            
+            shape_vals = [r.shape_correlation for r in source_results]
+            ax = axes[idx]
+            ax.hist(shape_vals, bins=50, edgecolor='black', alpha=0.7, color='steelblue')
+            ax.axvline(np.mean(shape_vals), color='red', linestyle='--', lw=2, label=f'Mean: {np.mean(shape_vals):.4f}')
+            ax.axvline(0.9, color='green', linestyle=':', lw=2, label='Threshold: 0.9')
+            ax.set_xlabel('Shape Correlation', fontsize=12)
+            ax.set_ylabel('Count', fontsize=12)
+            ax.set_title(f'{source.upper()} Shape Correlation Distribution (n={len(source_results)})', fontsize=12)
+            ax.legend()
+            ax.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        plt.savefig(plot_dir / "shape_correlation_distribution.png", dpi=150, bbox_inches='tight')
+        plt.close()
+        
+        # ============================================================
+        # 3. RMSE Distribution at Known Temps
+        # ============================================================
+        print("  → Generating RMSE distribution histogram...")
+        fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+        
+        for idx, source in enumerate(["train", "test"]):
+            source_results = [r for s, r in all_results if s == source]
+            if not source_results:
+                continue
+            
+            rmse_vals = [r.rmse_known for r in source_results]
+            ax = axes[idx]
+            ax.hist(rmse_vals, bins=50, edgecolor='black', alpha=0.7, color='coral')
+            ax.axvline(np.mean(rmse_vals), color='red', linestyle='--', lw=2, label=f'Mean: {np.mean(rmse_vals):.4f}')
+            tolerance = self.config.train_rmse_tolerance if source == "train" else self.config.test_rmse_tolerance
+            ax.axvline(tolerance, color='green', linestyle=':', lw=2, label=f'Tolerance: {tolerance}')
+            ax.set_xlabel('RMSE at Known Temps', fontsize=12)
+            ax.set_ylabel('Count', fontsize=12)
+            ax.set_title(f'{source.upper()} RMSE Distribution (n={len(source_results)})', fontsize=12)
+            ax.legend()
+            ax.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        plt.savefig(plot_dir / "rmse_known_distribution.png", dpi=150, bbox_inches='tight')
+        plt.close()
+        
+        # ============================================================
+        # 4. Curve Deviation Distribution
+        # ============================================================
+        print("  → Generating curve deviation histogram...")
+        fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+        
+        for idx, source in enumerate(["train", "test"]):
+            source_results = [r for s, r in all_results if s == source]
+            if not source_results:
+                continue
+            
+            dev_vals = [r.curve_max_deviation for r in source_results if r.curve_max_deviation < 10]
+            ax = axes[idx]
+            ax.hist(dev_vals, bins=50, edgecolor='black', alpha=0.7, color='mediumpurple')
+            ax.axvline(np.mean(dev_vals), color='red', linestyle='--', lw=2, label=f'Mean: {np.mean(dev_vals):.4f}')
+            tolerance = self.config.train_rmse_tolerance if source == "train" else self.config.test_rmse_tolerance
+            ax.axvline(tolerance, color='green', linestyle=':', lw=2, label=f'Tolerance: {tolerance}')
+            ax.set_xlabel('Max Curve Deviation', fontsize=12)
+            ax.set_ylabel('Count', fontsize=12)
+            ax.set_title(f'{source.upper()} Curve Deviation (n={len(dev_vals)})', fontsize=12)
+            ax.legend()
+            ax.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        plt.savefig(plot_dir / "curve_deviation_distribution.png", dpi=150, bbox_inches='tight')
+        plt.close()
+        
+        # ============================================================
+        # 5. Holdout Performance Comparison
+        # ============================================================
+        print("  → Generating holdout performance comparison...")
+        fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+        
+        for idx, source in enumerate(["train", "test"]):
+            source_results = [r for s, r in all_results if s == source and r.holdout_applicable]
+            if not source_results:
+                continue
+            
+            interp_r2 = [r.r2_holdout_interp_pred_vs_exp for r in source_results if not np.isnan(r.r2_holdout_interp_pred_vs_exp)]
+            extrap_r2 = [r.r2_holdout_extrap_pred_vs_exp for r in source_results if not np.isnan(r.r2_holdout_extrap_pred_vs_exp)]
+            
+            # Clip for visualization (extreme negative R² values)
+            interp_r2_clipped = np.clip(interp_r2, -2, 1)
+            extrap_r2_clipped = np.clip(extrap_r2, -2, 1)
+            
+            ax = axes[idx]
+            ax.boxplot([interp_r2_clipped, extrap_r2_clipped], labels=['Interpolation', 'Extrapolation'])
+            ax.axhline(0, color='gray', linestyle='--', alpha=0.5)
+            ax.set_ylabel('R² (clipped to [-2, 1])', fontsize=12)
+            ax.set_title(f'{source.upper()} Holdout Performance (n={len(source_results)})', fontsize=12)
+            ax.grid(True, alpha=0.3, axis='y')
+        
+        plt.tight_layout()
+        plt.savefig(plot_dir / "holdout_performance_comparison.png", dpi=150, bbox_inches='tight')
+        plt.close()
+        
+        # ============================================================
+        # 6. Summary Dashboard
+        # ============================================================
+        print("  → Generating summary dashboard...")
+        fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+        
+        # Top-left: Shape correlation comparison
+        ax = axes[0, 0]
+        train_shape = [r.shape_correlation for s, r in all_results if s == "train"]
+        test_shape = [r.shape_correlation for s, r in all_results if s == "test"]
+        ax.boxplot([train_shape, test_shape], labels=['Train', 'Test'])
+        ax.axhline(0.9, color='green', linestyle=':', lw=2, label='Threshold: 0.9')
+        ax.set_ylabel('Shape Correlation')
+        ax.set_title('Shape Correlation by Dataset')
+        ax.legend()
+        ax.grid(True, alpha=0.3, axis='y')
+        
+        # Top-right: RMSE at known temps
+        ax = axes[0, 1]
+        train_rmse = [r.rmse_known for s, r in all_results if s == "train"]
+        test_rmse = [r.rmse_known for s, r in all_results if s == "test"]
+        ax.boxplot([train_rmse, test_rmse], labels=['Train', 'Test'])
+        ax.set_ylabel('RMSE at Known Temps')
+        ax.set_title('RMSE Distribution by Dataset')
+        ax.grid(True, alpha=0.3, axis='y')
+        
+        # Bottom-left: Synthetic R²
+        ax = axes[1, 0]
+        train_synth = np.clip([r.r2_synthetic_vs_apelblat for s, r in all_results if s == "train"], -2, 1)
+        test_synth = np.clip([r.r2_synthetic_vs_apelblat for s, r in all_results if s == "test"], -2, 1)
+        ax.boxplot([train_synth, test_synth], labels=['Train', 'Test'])
+        ax.axhline(0, color='gray', linestyle='--', alpha=0.5)
+        ax.set_ylabel('R² at Synthetic Temps (clipped)')
+        ax.set_title('Synthetic Temperature Performance')
+        ax.grid(True, alpha=0.3, axis='y')
+        
+        # Bottom-right: Category distribution
+        ax = axes[1, 1]
+        categories = ['Excellent', 'Good', 'Moderate', 'Poor']
+        for source, color in [("train", "steelblue"), ("test", "coral")]:
+            source_results = [r for s, r in all_results if s == source]
+            counts = [sum(1 for r in source_results if r.category == cat) for cat in categories]
+            x = np.arange(len(categories))
+            width = 0.35
+            offset = -width/2 if source == "train" else width/2
+            ax.bar(x + offset, counts, width, label=source.upper(), color=color, alpha=0.8)
+        ax.set_xticks(x)
+        ax.set_xticklabels(categories)
+        ax.set_ylabel('Count')
+        ax.set_title('Category Distribution by Dataset')
+        ax.legend()
+        ax.grid(True, alpha=0.3, axis='y')
+        
+        plt.suptitle('Apelblat Experiment Summary Dashboard', fontsize=14, fontweight='bold')
+        plt.tight_layout()
+        plt.savefig(plot_dir / "summary_dashboard.png", dpi=150, bbox_inches='tight')
+        plt.close()
+        
+        print(f"  ✓ Plots saved to {plot_dir}")
 
 def main():
     config = ExperimentConfig()

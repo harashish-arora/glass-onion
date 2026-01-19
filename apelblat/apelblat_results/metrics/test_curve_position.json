@@ -1,0 +1,10 @@
+{
+  "label": "test",
+  "n_completely_above": 348,
+  "n_completely_below": 277,
+  "n_intersects": 151,
+  "pct_completely_above": 44.85,
+  "pct_completely_below": 35.7,
+  "pct_intersects": 19.46,
+  "pct_no_intersection": 80.54
+}

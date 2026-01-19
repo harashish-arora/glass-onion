@@ -1,6 +1,6 @@
 {
   "label": "test",
-  "mean_rmse": 0.2927,
-  "mean_r2": -1.3132,
-  "n_pairs": 524
+  "mean_rmse": 0.5159,
+  "mean_r2": -24.6843,
+  "n_pairs": 776
 }

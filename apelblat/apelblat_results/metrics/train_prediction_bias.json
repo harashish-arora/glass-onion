@@ -1,0 +1,12 @@
+{
+  "label": "train",
+  "mean_signed_error": 0.0207,
+  "std_signed_error": 0.2988,
+  "mean_pct_over_prediction": 51.76,
+  "n_over_biased": 1974,
+  "n_under_biased": 1774,
+  "n_balanced": 388,
+  "pct_over_biased": 47.73,
+  "pct_under_biased": 42.89,
+  "pct_balanced": 9.38
+}

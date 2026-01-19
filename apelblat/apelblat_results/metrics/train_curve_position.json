@@ -1,0 +1,10 @@
+{
+  "label": "train",
+  "n_completely_above": 1258,
+  "n_completely_below": 1187,
+  "n_intersects": 1691,
+  "pct_completely_above": 30.42,
+  "pct_completely_below": 28.7,
+  "pct_intersects": 40.88,
+  "pct_no_intersection": 59.12
+}

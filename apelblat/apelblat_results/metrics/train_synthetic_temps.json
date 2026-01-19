@@ -1,6 +1,6 @@
 {
   "label": "train",
-  "mean_rmse": 0.2327,
-  "mean_r2": -3.0137,
-  "n_pairs": 3861
+  "mean_rmse": 0.2812,
+  "mean_r2": -7.3234,
+  "n_pairs": 4136
 }
