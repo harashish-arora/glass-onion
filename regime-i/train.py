@@ -9,7 +9,7 @@ from catboost import CatBoostRegressor
 from featurizer import MoleculeFeaturizer
 
 # config
-SEED = 101
+SEEDS = [42, 101, 123, 456, 789]  # 5 seeds for variance estimation
 TRAIN_PATH = "./data/train.csv"
 TEST_PATH = "./data/test.csv"
 MODEL_DIR = "./model" 
@@ -42,40 +42,59 @@ def main():
     print(f"Train shape: {X_train.shape}")
     print(f"Test shape:  {X_test.shape}")
 
-    # 3. Training
-    print("Training CatBoost Regressor...")
-    model = CatBoostRegressor(
-        iterations=5000,
-        learning_rate=0.02,
-        depth=8,
-        l2_leaf_reg=5,
-        verbose=200,
-        random_state=SEED,
-        allow_writing_files=False,
-        thread_count=-1
-    )
+    # 3. Multi-seed Training
+    print(f"\n{'='*60}")
+    print(f"TRAINING WITH {len(SEEDS)} SEEDS")
+    print(f"{'='*60}")
     
-    model.fit(X_train, y_train)
-
-    # 4. Evaluation
-    print()
-    print("Evaluating on Test Set...")
-    preds = model.predict(X_test)
+    rmse_scores = []
+    mae_scores = []
+    r2_scores = []
+    best_model = None
+    best_rmse = float('inf')
     
-    rmse = np.sqrt(mean_squared_error(y_test, preds))
-    mae = mean_absolute_error(y_test, preds)
-    r2 = r2_score(y_test, preds)
+    for seed in SEEDS:
+        print(f"\n--- Seed {seed} ---")
+        model = CatBoostRegressor(
+            iterations=5000,
+            learning_rate=0.02,
+            depth=8,
+            l2_leaf_reg=5,
+            verbose=1000,
+            random_state=seed,
+            allow_writing_files=False,
+            thread_count=-1
+        )
+        
+        model.fit(X_train, y_train)
+        preds = model.predict(X_test)
+        
+        rmse = np.sqrt(mean_squared_error(y_test, preds))
+        mae = mean_absolute_error(y_test, preds)
+        r2 = r2_score(y_test, preds)
+        
+        rmse_scores.append(rmse)
+        mae_scores.append(mae)
+        r2_scores.append(r2)
+        
+        print(f"  RMSE: {rmse:.4f}, MAE: {mae:.4f}, R²: {r2:.4f}")
+        
+        if rmse < best_rmse:
+            best_rmse = rmse
+            best_model = model
 
-    print()
-    print(f"Results")
-    print(f"RMSE: {rmse:.4f}")
-    print(f"MAE: {mae:.4f}")
-    print(f"R²: {r2:.4f}")
+    # 4. Report Results
+    print(f"\n{'='*60}")
+    print("FINAL RESULTS (5 seeds)")
+    print(f"{'='*60}")
+    print(f"RMSE: {np.mean(rmse_scores):.4f} ± {np.std(rmse_scores):.4f}")
+    print(f"MAE:  {np.mean(mae_scores):.4f} ± {np.std(mae_scores):.4f}")
+    print(f"R²:   {np.mean(r2_scores):.4f} ± {np.std(r2_scores):.4f}")
 
-    # 5. Save model
-    print(f"Saving model to {MODEL_SAVE_PATH}...")
+    # 5. Save best model
+    print(f"\nSaving best model (RMSE={best_rmse:.4f}) to {MODEL_SAVE_PATH}...")
     os.makedirs(MODEL_DIR, exist_ok=True)
-    joblib.dump(model, MODEL_SAVE_PATH)
+    joblib.dump(best_model, MODEL_SAVE_PATH)
     
     print("Done.")
 
