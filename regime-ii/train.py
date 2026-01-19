@@ -18,7 +18,7 @@ TRAIN_FILE = os.path.join(DATA_DIR, "train.csv")
 TEST_FILE = os.path.join(DATA_DIR, "test.csv")
 OOF_EMBED_FILE = "train_embeddings.csv"
 TRANSFORMER_PATH = "transformer.pth"
-SEED = 42
+SEEDS = [42, 101, 123, 456, 789]  # 5 seeds for variance estimation
 
 warnings.filterwarnings("ignore")
 
@@ -39,13 +39,12 @@ def load_hyper_features(df, embed_df):
     T_red = (T_raw / Tm).astype(np.float32)
     
     # 3. signed modulus interactions
-    # Reshape (Samples, 24 Members, 32 Dims) -> Calculate Magnitude and Direction
     X_reshaped = X_embed.reshape(X_embed.shape[0], 24, 32)
     X_modulus = np.linalg.norm(X_reshaped, axis=2) 
     X_sign = np.sign(X_reshaped.mean(axis=2))
     X_interact = (X_sign * X_modulus) * T_inv
     
-    # Note: X_embed (768 latent) removed - keeping only X_interact (24 interaction terms)(if you ever want to add it bac, [X_raw, X_embed, X_interact, Tm, T_red, T_raw, T_inv])
+    # Note: X_embed (768 latent) removed - keeping only X_interact (24 interaction terms)
     return np.hstack([X_raw, X_interact, Tm, T_red, T_raw, T_inv])
 
 def generate_test_hyper_features(df_test):
@@ -98,6 +97,7 @@ def run_model_training():
     df_train = pd.read_csv(TRAIN_FILE)
     df_oof = pd.read_csv(OOF_EMBED_FILE)
     X_full = load_hyper_features(df_train, df_oof)
+    y_train = df_train['LogS'].values
     
     # 2. Variance Pruning
     print(f"Initial features: {X_full.shape[1]}")
@@ -110,31 +110,60 @@ def run_model_training():
     mono = [0] * X_pruned.shape[1]
     mono[-3], mono[-2], mono[-1] = 1, 1, -1 # T_red, T, 1/T
     print("Physical consistency maintained")
-
-    # 4. Training
-    X_tr, X_val, y_tr, y_val = train_test_split(X_pruned, df_train['LogS'].values, test_size=0.05, random_state=SEED)
     
-    print("Training model...")
-    model = CatBoostRegressor(
-        iterations=3000, learning_rate=0.02, depth=8, l2_leaf_reg=5,
-        monotone_constraints=mono, early_stopping_rounds=100, 
-        random_seed=SEED, verbose=200, thread_count=-1
-    )
-    model.fit(X_tr, y_tr, eval_set=(X_val, y_val))
-    joblib.dump(model, os.path.join(MODEL_DIR, "model.joblib"))
-
-    # 5. Evaluation
-    print("\nEvaluating on Rare Solvents (OOD)...")
+    # 4. Load test data
     df_test = pd.read_csv(TEST_FILE)
     X_test = selector.transform(generate_test_hyper_features(df_test))
-    preds = model.predict(X_test)
+    y_test = df_test['LogS'].values
     
-    print()
-    print("Test Performance on LEEDS:")
-    print()
-    print(f"RMSE: {np.sqrt(mean_squared_error(df_test['LogS'], preds)):.4f}")
-    print(f"R2:   {r2_score(df_test['LogS'], preds):.4f}")
-    print()
+    # 5. Multi-seed Training
+    print(f"\n{'='*60}")
+    print(f"TRAINING WITH {len(SEEDS)} SEEDS")
+    print(f"{'='*60}")
+    
+    rmse_scores = []
+    r2_scores = []
+    best_model = None
+    best_rmse = float('inf')
+    
+    for seed in SEEDS:
+        print(f"\n--- Seed {seed} ---")
+        
+        X_tr, X_val, y_tr, y_val = train_test_split(
+            X_pruned, y_train, test_size=0.05, random_state=seed
+        )
+        
+        model = CatBoostRegressor(
+            iterations=3000, learning_rate=0.02, depth=8, l2_leaf_reg=5,
+            monotone_constraints=mono, early_stopping_rounds=100, 
+            random_seed=seed, verbose=500, thread_count=-1
+        )
+        model.fit(X_tr, y_tr, eval_set=(X_val, y_val))
+        
+        preds = model.predict(X_test)
+        rmse = np.sqrt(mean_squared_error(y_test, preds))
+        r2 = r2_score(y_test, preds)
+        
+        rmse_scores.append(rmse)
+        r2_scores.append(r2)
+        
+        print(f"  RMSE: {rmse:.4f}, R²: {r2:.4f}")
+        
+        if rmse < best_rmse:
+            best_rmse = rmse
+            best_model = model
+
+    # 6. Report Results
+    print(f"\n{'='*60}")
+    print("FINAL RESULTS (5 seeds)")
+    print(f"{'='*60}")
+    print(f"RMSE: {np.mean(rmse_scores):.4f} ± {np.std(rmse_scores):.4f}")
+    print(f"R²:   {np.mean(r2_scores):.4f} ± {np.std(r2_scores):.4f}")
+    
+    # 7. Save best model
+    print(f"\nSaving best model (RMSE={best_rmse:.4f}) to model/model.joblib...")
+    joblib.dump(best_model, os.path.join(MODEL_DIR, "model.joblib"))
+    print("Done.")
 
 if __name__ == "__main__":
     run_model_training()

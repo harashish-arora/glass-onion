@@ -49,14 +49,48 @@ class MoleculeFeaturizer:
     #     return counts
 
     def _mose_features(self, mol):
-        motifs = {
-            "cyc3": "C1CC1", "cyc4": "C1CCC1", "cyc5": "C1CCCC1", "cyc6": "C1CCCCC1",
-            "cyc7": "C1CCCCCC1", "cyc8": "C1CCCCCCC1", "benzene": "c1ccccc1",
-            "branched_4": "[*]~[*](~[*])~[*]", "star_5": "[*]~[*](~[*])(~[*])~[*]",
-            "fused": "[R]@[R]", "path3": "[*]~[*]~[*]", "path4": "[*]~[*]~[*]~[*]", 
-            "path5": "[*]~[*]~[*]~[*]~[*]"
+        # 1. Get Adjacency Matrix (Float for precision)
+        A = Chem.GetAdjacencyMatrix(mol).astype(float)
+        degrees = np.sum(A, axis=0)
+        
+        # 2. Compute Matrix Powers (A^2 to A^8)
+        # Used for counting Cycles (Trace) and Paths (Sum)
+        A2 = np.linalg.matrix_power(A, 2)
+        A3 = A2 @ A
+        A4 = A3 @ A
+        A5 = A4 @ A
+        A6 = A5 @ A
+        A7 = A6 @ A
+        A8 = A7 @ A
+
+        # 3. Compile Homomorphism Counts
+        # Note: Benzene and Fused kept as structural matches to preserve chemical specificity
+        # while switching topological patterns to strict Homomorphism (Spectral) counts.
+        return {
+            # Cycles: Hom(C_k, G) = Trace(A^k)
+            "mose_cyc3": float(np.trace(A3)),
+            "mose_cyc4": float(np.trace(A4)),
+            "mose_cyc5": float(np.trace(A5)),
+            "mose_cyc6": float(np.trace(A6)),
+            "mose_cyc7": float(np.trace(A7)),
+            "mose_cyc8": float(np.trace(A8)),
+            
+            # Paths: Hom(P_k, G) = Sum(A^(k-1))
+            # Path3 (3 nodes, 2 edges) -> Sum(A^2)
+            "mose_path3": float(np.sum(A2)), 
+            "mose_path4": float(np.sum(A3)),
+            "mose_path5": float(np.sum(A4)),
+
+            # Stars: Hom(S_k, G) = Sum(degree^k) where k is num_leaves
+            # branched_4 = Center + 3 leaves -> 3rd moment
+            "mose_branched_4": float(np.sum(np.power(degrees, 3))),
+            # star_5 = Center + 4 leaves -> 4th moment
+            "mose_star_5": float(np.sum(np.power(degrees, 4))),
+
+            # Preserved Chemical Patterns (RDKit)
+            "mose_benzene": len(mol.GetSubstructMatches(Chem.MolFromSmarts("c1ccccc1"))),
+            "mose_fused": len(mol.GetSubstructMatches(Chem.MolFromSmarts("[R]@[R]")))
         }
-        return {f"mose_{k}": len(mol.GetSubstructMatches(Chem.MolFromSmarts(v))) for k, v in motifs.items()}
 
     def _thermo_proxies(self, mol):
         # thermodynamic proxies
