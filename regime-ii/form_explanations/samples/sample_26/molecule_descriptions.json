@@ -1,0 +1,10 @@
+{
+  "solute": {
+    "smiles": "O=C(O)Cc1ccc([N+](=O)[O-])cc1",
+    "description": "This molecule, 4-nitrophenylacetic acid, consists of a central benzene ring with substituents at the para (1,4) positions. It features a carboxylic acid group attached to the ring via a single methylene bridge and a nitro group bonded directly to the opposite side of the aromatic core. The structure is highly polar and possesses significant hydrogen bonding capacity, acting as both a hydrogen bond donor and acceptor through the carboxylic acid and nitro moieties. This small organic molecule is characterized by the electronic contrast between the strongly electron-withdrawing nitro group and the acidic carboxyl group separated by a rigid aromatic spacer."
+  },
+  "solvent": {
+    "smiles": "CC(=O)N(C)C",
+    "description": "This molecule, $N,N$-dimethylacetamide, is a small acyclic tertiary amide consisting of an acetyl group bonded to a dimethylamine moiety. The structure features a central carbonyl carbon double-bonded to oxygen and single-bonded to a methyl group and a nitrogen atom, which is further substituted with two methyl groups. It is a highly polar molecule characterized by a significant dipole moment originating from the amide resonance, yet it lacks hydrogen bond donors due to the absence of N-H bonds. Consequently, it functions exclusively as a hydrogen bond acceptor through its carbonyl oxygen within a compact, four-carbon framework."
+  }
+}

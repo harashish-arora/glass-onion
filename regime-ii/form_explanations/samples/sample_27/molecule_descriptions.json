@@ -1,0 +1,10 @@
+{
+  "solute": {
+    "smiles": "CCCCCCCCCCCCCCCc1cccc(O)c1",
+    "description": "This molecule consists of a benzene ring substituted with a linear, unbranched 15-carbon pentadecyl chain. A single hydroxyl group is positioned on the aromatic ring meta to the alkyl chain, identifying the structure as a long-chain alkylphenol (specifically 3-pentadecylphenol). The molecule is characterized by a large, nonpolar hydrophobic tail and a small, polar phenolic head capable of both donating and accepting hydrogen bonds. Its distinctive nature stems from the extreme structural imbalance between the extensive hydrocarbon chain and the localized reactivity of the aromatic hydroxyl group."
+  },
+  "solvent": {
+    "smiles": "ClC(Cl)(Cl)Cl",
+    "description": "This molecule consists of a single central carbon atom covalently bonded to four chlorine atoms in a symmetrical tetrahedral geometry. It is a perchlorinated alkane, specifically tetrachloromethane, where every available valence on the carbon is occupied by a halogen. Despite the high electronegativity of the chlorine substituents, the molecule is nonpolar because its perfect symmetry causes the individual bond dipoles to cancel out. It is a small, compact molecule that lacks hydrogen atoms, precluding any hydrogen-bond donating capacity."
+  }
+}

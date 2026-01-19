@@ -1,0 +1,6 @@
+{
+  "train": 0.3945,
+  "test": 0.4946,
+  "generalization_gap": -0.1001,
+  "score_weights": "Shape 25% + Tolerance 25% + Synthetic R\u00b2 25% + Holdout 25%"
+}

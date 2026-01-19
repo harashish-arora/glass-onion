@@ -1,0 +1,10 @@
+{
+  "solute": {
+    "smiles": "C=CC(=O)NC(C)(C)C",
+    "description": "This molecule is N-tert-butylacrylamide, featuring an acryloyl moiety (a terminal vinyl group conjugated to a carbonyl) linked to a secondary amide. The nitrogen atom is substituted with a bulky tert-butyl group, which creates a highly branched, sterically hindered aliphatic terminus. It is a small, polar molecule capable of both donating and accepting hydrogen bonds through its secondary amide group (N-H and C=O). The structure is distinctive for its combination of a reactive, electrophilic \u03b1,\u03b2-unsaturated system and a localized hydrophobic, bulky tert-butyl region."
+  },
+  "solvent": {
+    "smiles": "ClCCl",
+    "description": "The molecule is a geminal dihalide consisting of a single carbon atom covalently bonded to two chlorine atoms and two hydrogen atoms in a tetrahedral arrangement. Its core structure is a substituted methane where the two electronegative chlorine atoms are positioned on the same carbon, resulting in a significant molecular dipole. Despite its small size and lack of hydrogen-bond donating groups, the molecule is polar and can function as a weak hydrogen-bond acceptor via the lone pairs on the chlorine substituents."
+  }
+}

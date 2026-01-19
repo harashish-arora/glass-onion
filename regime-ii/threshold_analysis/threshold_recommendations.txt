@@ -1,0 +1,59 @@
+======================================================================
+THRESHOLD RECOMMENDATIONS FOR ENHANCED_EXPLAIN_PIPELINE.PY
+======================================================================
+
+RECOMMENDED THRESHOLDS
+----------------------------------------------------------------------
+Strategy: Percentile - Moderate: 40th for good, 85th for bad
+
+good_prediction_threshold = 0.2378
+bad_prediction_threshold  = 0.8783
+
+Expected sample counts:
+  Good predictions  (error < 0.2378): 3655 samples
+  Bad predictions   (error > 0.8783): 1371 samples
+  Middle range: 4111 samples
+
+USAGE IN ENHANCED_EXPLAIN_PIPELINE.PY
+----------------------------------------------------------------------
+python enhanced_explain_pipeline.py \
+    --good-threshold 0.2378 \
+    --bad-threshold 0.8783
+
+FEATURE THRESHOLDS
+----------------------------------------------------------------------
+Computed 282 per-feature thresholds using ±2 std from mean
+Saved to: feature_thresholds.json
+Use these thresholds in identify_unusual_features() function
+
+
+ALL RECOMMENDATIONS
+----------------------------------------------------------------------
+
+1. Percentile: Conservative: Q1 for good, Q3 for bad
+   good=0.1388, bad=0.6490
+   → 2285 good, 2285 bad, 4567 middle
+
+2. Percentile: Balanced: 33rd for good, 90th for bad
+   good=0.1869, bad=1.0897
+   → 3015 good,  914 bad, 5208 middle
+
+3. Percentile: Moderate: 40th for good, 85th for bad
+   good=0.2378, bad=0.8783
+   → 3655 good, 1371 bad, 4111 middle
+
+4. Target Count: Target 15 good, 15 bad
+   good=0.0014, bad=3.1587
+   →   15 good,   15 bad, 9107 middle
+
+5. Statistical: Mean ± 0.5/1.0 std
+   good=0.2337, bad=0.9629
+   → 3601 good, 1149 bad, 4387 middle
+
+6. Statistical: Mean ± 1.0 std
+   good=0.0000, bad=0.9629
+   →    0 good, 1149 bad, 7988 middle
+
+7. Current: enhanced_explain_pipeline.py defaults
+   good=0.3000, bad=1.0000
+   → 4354 good, 1081 bad, 3702 middle

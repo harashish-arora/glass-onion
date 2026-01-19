@@ -1,0 +1,10 @@
+{
+  "solute": {
+    "smiles": "O=C(Nc1ccccc1)c1ccccc1",
+    "description": "This molecule, N-phenylbenzamide, consists of two phenyl rings linked by a secondary amide functional group. The structure features a central carbonyl carbon bonded directly to one benzene ring and an amine nitrogen bonded to the other, creating a rigid bridge between the two aromatic systems. It possesses a moderate molecular size with a localized polar center capable of both hydrogen bond donation through the N-H group and hydrogen bond acceptance via the carbonyl oxygen. The molecule is distinctive for its symmetrical aromatic substitution and the potential for pi-conjugation across the planar amide linkage."
+  },
+  "solvent": {
+    "smiles": "ClCCl",
+    "description": "Dichloromethane consists of a single central sp3-hybridized carbon atom bonded to two chlorine atoms and two hydrogen atoms in a tetrahedral geometry. The molecule features two geminal chloro groups, characterizing it as a simple dihalogenated methane derivative. It is a small, polar molecule with a permanent dipole moment resulting from the C-Cl bond vectors, though it lacks any hydrogen bond donor capacity."
+  }
+}
