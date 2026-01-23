@@ -776,7 +776,7 @@ class ExplanationGenerator:
         
         prompt = EVIDENCE_SUMMARY_PROMPT.format(
             shap_features=shap_str,
-            group_contributions=group_str,
+            group_contributions=group_sftr,
             structural_features=struct_str + "\n\nUNUSUAL VALUES:\n" + unusual_str
         )
         
