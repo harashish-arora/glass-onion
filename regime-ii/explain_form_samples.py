@@ -43,6 +43,7 @@ from enhanced_explain_pipeline import (
     DECISION_ANALYSIS_SYSTEM, DECISION_ANALYSIS_PROMPT,
     INTEGRATION_SYSTEM, INTEGRATION_PROMPT,
     CONDENSATION_SYSTEM, CONDENSATION_PROMPT,
+    VALIDATION_SYSTEM, VALIDATION_PROMPT,
     format_shap_with_insights, identify_unusual_features
 )
 
@@ -417,6 +418,118 @@ class FormExplanationGenerator:
         time.sleep(self.config.rate_limit_delay)
         return response, {"system_prompt": CONDENSATION_SYSTEM, "user_prompt": prompt, "success": success}
     
+    def generate_validation(self, sample: Dict, explanation: str, solute_desc: str = "", solvent_desc: str = "") -> Tuple[Dict, Dict]:
+        """Validate explanation against source evidence."""
+        
+        # Format SHAP features
+        shap_str = format_shap_with_insights(sample["shap_values"], top_n=20)
+        
+        # Group contributions
+        group_contribs = {"Solute": 0, "Solvent": 0, "Interact": 0, "Thermo": 0}
+        for name, value in sample["shap_values"].items():
+            if name.startswith("Solute_"): group_contribs["Solute"] += value
+            elif name.startswith("Solvent_"): group_contribs["Solvent"] += value
+            elif name.startswith("Interact_"): group_contribs["Interact"] += value
+            else: group_contribs["Thermo"] += value
+        
+        dominant = max(group_contribs.items(), key=lambda x: abs(x[1]))
+        total_contrib = sum(abs(v) for v in group_contribs.values())
+        
+        group_str_lines = [f"  {k}: {v:+.4f}" for k, v in group_contribs.items()]
+        group_str_lines.append(f"\n  Dominant group: {dominant[0]} ({abs(dominant[1])/total_contrib*100:.1f}% of total signal)")
+        group_str = "\n".join(group_str_lines)
+        
+        # Cross-attention summary
+        attn = np.array(sample["cross_attention_weights"])
+        council_names = sample["council_feature_names"]
+        
+        top_indices = np.argsort(attn.flatten())[-10:][::-1]
+        attn_items = []
+        for idx in top_indices:
+            i, j = idx // attn.shape[1], idx % attn.shape[1]
+            solute_feat = council_names[i] if i < len(council_names) else f"Solute_{i}"
+            solvent_feat = council_names[j] if j < len(council_names) else f"Solvent_{j}"
+            attn_items.append(f"  {solute_feat} → {solvent_feat}: {attn[i, j]:.4f}")
+        attn_str = "\n".join(attn_items)
+        
+        # Structural features
+        struct_items = sorted(sample["structural_features"].items(), 
+                            key=lambda x: abs(x[1]), reverse=True)[:15]
+        struct_str = "\n".join([f"  {k}: {v:.4f}" for k, v in struct_items])
+        
+        # Tree statistics
+        path = sample["leaf_path"]
+        tree_stats = f"Number of trees: {len(path)}, Mean leaf: {np.mean(path):.1f}, Std: {np.std(path):.1f}"
+        
+        # Unusual features detection
+        unusual_str = identify_unusual_features(sample["structural_features"])
+
+        # Top decision features (same as in Stage 2)
+        top_feats = sorted(
+            sample["shap_values"].items(),
+            key=lambda x: abs(x[1]),
+            reverse=True
+        )[:10]
+        decision_feat_str = "\n".join([
+            f"  {name}: {value:+.4f} ({'positive' if value > 0 else 'negative'} contribution)"
+            for name, value in top_feats
+        ])
+
+        # Format validation prompt
+        prompt = VALIDATION_PROMPT.format(
+            explanation=explanation,
+            solute_smiles=sample["solute"],
+            solute_description=solute_desc,
+            solvent_smiles=sample["solvent"],
+            solvent_description=solvent_desc,
+            shap_features=shap_str,
+            unusual_features=unusual_str,
+            decision_features=decision_feat_str,
+            group_contributions=group_str,
+            cross_attention_summary=attn_str,
+            structural_features=struct_str,
+            tree_stats=tree_stats,
+            y_pred=sample["y_pred"],
+            temperature=sample["temperature"]
+        )
+        
+        response, success = self.caller.call(prompt, VALIDATION_SYSTEM, temperature=0.1)
+        time.sleep(self.config.rate_limit_delay)
+        
+        # Parse JSON response
+        validation_result = {
+            "is_valid": True,
+            "issues_found": [],
+            "corrections": [],
+            "corrected_explanation": None,
+            "confidence": "unknown",
+            "raw_response": response
+        }
+        
+        if success:
+            try:
+                # Try to extract JSON from response
+                import re
+                json_match = re.search(r'\{.*\}', response, re.DOTALL)
+                if json_match:
+                    parsed = json.loads(json_match.group())
+                    validation_result.update({
+                        "is_valid": parsed.get("is_valid", True),
+                        "issues_found": parsed.get("issues_found", []),
+                        "corrections": parsed.get("corrections", []),
+                        "corrected_explanation": parsed.get("corrected_explanation", None),
+                        "confidence": parsed.get("confidence", "unknown")
+                    })
+            except json.JSONDecodeError:
+                print("    ⚠ Warning: Could not parse validation JSON, treating as valid")
+        
+        return validation_result, {
+            "system_prompt": VALIDATION_SYSTEM,
+            "user_prompt": prompt,
+            "success": success
+        }
+
+    
     def process_sample(self, sample: Dict) -> Dict:
         sample_name = f"sample_{sample['index']}"
         sample_dir = self.output_dir / "samples" / sample_name
@@ -455,16 +568,62 @@ class FormExplanationGenerator:
         all_prompts["stage2_decision_analysis"] = decision_info
         
         # Stage 3: Final explanation
-        print(f"    [3/4] Generating final explanation...")
+        print(f"    [3/5] Generating final explanation...")
         final_explanation, final_info = self.generate_final_explanation(
             sample, solute_desc, solvent_desc, evidence_summary, decision_analysis
         )
         (sample_dir / "stage3_final_explanation.md").write_text(final_explanation)
         all_prompts["stage3_final_explanation"] = final_info
         
-        # Stage 4: Condensation
-        print(f"    [4/4] Condensing explanation...")
-        condensed_explanation, condensed_info = self.generate_condensed_explanation(final_explanation)
+        # Stage 3.5: Validation
+        print(f"    [4/5] Validating explanation...")
+        validation_result, validation_info = self.generate_validation(
+            sample, 
+            final_explanation,
+            solute_desc=solute_desc,
+            solvent_desc=solvent_desc
+        )
+        (sample_dir / "stage3.5_validation.json").write_text(json.dumps(validation_result, indent=2))
+        all_prompts["stage3.5_validation"] = validation_info
+        
+        # Check validation results and use corrected explanation if needed
+        explanation_for_condensation = final_explanation
+        if not validation_result["is_valid"] and validation_result["issues_found"]:
+            print(f"    ⚠ Validation found {len(validation_result['issues_found'])} issue(s)")
+            for i, issue in enumerate(validation_result["issues_found"][:3], 1):
+                print(f"      {i}. {issue[:80]}...")
+            
+            # Save original explanation with issues
+            (sample_dir / "stage3_final_explanation_ORIGINAL.md").write_text(final_explanation)
+            
+            # If corrections provided, create a note about them
+            if validation_result["corrections"]:
+                corrections_note = "# Validation Issues Found\n\n"
+                corrections_note += "## Issues:\n"
+                for i, issue in enumerate(validation_result["issues_found"], 1):
+                    corrections_note += f"{i}. {issue}\n"
+                corrections_note += "\n## Suggested Corrections:\n"
+                for i, correction in enumerate(validation_result["corrections"], 1):
+                    corrections_note += f"{i}. {correction}\n"
+                (sample_dir / "validation_corrections.md").write_text(corrections_note)
+
+            # Use corrected explanation if provided
+            if validation_result.get("corrected_explanation"):
+                print("    ✓ Applying automatic correction...")
+                explanation_for_condensation = validation_result["corrected_explanation"]
+                # Save corrected version as the main file
+                (sample_dir / "stage3_final_explanation.md").write_text(explanation_for_condensation)
+                # Save correction metadata
+                (sample_dir / "stage3_correction_applied.json").write_text(json.dumps({
+                    "original_hash":  hash(final_explanation),
+                    "correction_timestamp": datetime.now().isoformat()
+                }, indent=2))
+        else:
+            print(f"    ✓ Validation passed (confidence: {validation_result['confidence']})")
+        
+        # Stage 4: Condensation (using validated explanation)
+        print(f"    [5/5] Condensing explanation...")
+        condensed_explanation, condensed_info = self.generate_condensed_explanation(explanation_for_condensation)
         (sample_dir / "stage4_condensed.txt").write_text(condensed_explanation)
         all_prompts["stage4_condensed"] = condensed_info
         
@@ -477,6 +636,8 @@ class FormExplanationGenerator:
             "solvent": sample["solvent"],
             "temperature": sample["temperature"],
             "y_pred": sample["y_pred"],
+            "validation_passed": validation_result["is_valid"],
+            "validation_issues": len(validation_result["issues_found"]),
             "final_explanation": condensed_explanation,
             "output_dir": str(sample_dir)
         }

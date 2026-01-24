@@ -1,0 +1,10 @@
+{
+  "solute": {
+    "smiles": "CCn1cc(C(=O)O)c(=O)c2cnc(N3CCNCC3)nc21",
+    "description": "This molecule is a 1,8-naphthyridine derivative featuring a fused bicyclic core with an ethyl substituent at the N1 position and a piperazine ring attached at the C7 position. The structure contains a 4-oxo-1,4-dihydro-1,8-naphthyridine-3-carboxylic acid scaffold, characterized by a carboxylic acid group at C3 and a ketone at C4. It is a highly polar, amphoteric molecule with significant hydrogen bonding capacity, possessing both acidic (carboxylic acid) and basic (secondary amine in the piperazine ring) functional groups. The combination of a rigid, planar aromatic system and a flexible, ionizable piperazine moiety gives the molecule a distinct zwitterionic character and a medium molecular size."
+  },
+  "solvent": {
+    "smiles": "CCCCCCCCO",
+    "description": "This molecule consists of a linear, unbranched eight-carbon aliphatic chain with no rings or unsaturation. It features a single primary hydroxyl group (-OH) covalently bonded to the terminal carbon atom. The structure is characterized by a large nonpolar hydrocarbon region and a small polar head, providing both hydrogen bond donating and accepting capacity. Its distinctive feature is the high ratio of the hydrophobic octyl chain relative to the single functional group, making it a medium-sized amphiphilic molecule."
+  }
+}

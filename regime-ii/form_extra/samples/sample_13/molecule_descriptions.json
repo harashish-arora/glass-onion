@@ -1,0 +1,10 @@
+{
+  "solute": {
+    "smiles": "CC(C)(Oc1ccc(CCNC(=O)c2ccc(Cl)cc2)cc1)C(=O)O",
+    "description": "This molecule features two para-substituted benzene rings joined by a 2-(benzamido)ethyl bridge, with a chlorine atom at one terminus and an oxy-isobutyric acid group at the other. Key functional groups include a secondary amide, an ether linkage, and a terminal carboxylic acid, which together provide significant hydrogen bonding capacity. The structure is defined by its relatively large size and the distinctive gem-dimethyl branching on the propanoic acid moiety, which creates a sterically hindered acidic center. The overall character is determined by the balance between the hydrophobic chlorinated aromatic rings and the highly polar amide and carboxylic acid groups."
+  },
+  "solvent": {
+    "smiles": "CC(C)CCO",
+    "description": "This molecule, 3-methylbutan-1-ol, consists of a branched five-carbon aliphatic chain featuring a four-carbon backbone with a methyl substituent at the C3 position. It is characterized by a terminal primary hydroxyl group, which serves as both a hydrogen bond donor and acceptor. The structure is relatively small and exhibits distinct polarity concentrated at the alcohol terminus, which contrasts with the hydrophobic character of its branched isopentyl tail."
+  }
+}

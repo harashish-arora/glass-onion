@@ -1,0 +1,10 @@
+{
+  "solute": {
+    "smiles": "COC(=O)Nc1nc2cc(Sc3ccccc3)ccc2[nH]1",
+    "description": "This molecule features a benzimidazole core substituted at the 2-position with a methyl carbamate group and at the 5-position with a phenylthio (thiophenyl) moiety. The structure is characterized by three aromatic rings\u2014a fused benzimidazole system and a pendant benzene ring\u2014connected via a thioether bridge. It possesses moderate polarity and significant hydrogen-bonding capacity, containing two hydrogen-bond donors (the carbamate and imidazole NH groups) and three primary hydrogen-bond acceptors (the carbonyl oxygen, methoxy oxygen, and the imine nitrogen). The molecule is of medium size (C15H13N3O2S) and is defined by its rigid heterocyclic scaffold and the specific electronic properties of the sulfur-linked aromatic substituent."
+  },
+  "solvent": {
+    "smiles": "OCCO",
+    "description": "The molecule consists of a short, linear two-carbon chain with a terminal hydroxyl group attached to each carbon, forming a symmetrical 1,2-diol structure. This vicinal dihydroxy configuration on an ethane backbone lacks any branching or rings, resulting in a very small and compact molecular size. Due to the two hydroxyl groups, the molecule is highly polar and possesses extensive hydrogen bonding capacity as both a donor and an acceptor."
+  }
+}

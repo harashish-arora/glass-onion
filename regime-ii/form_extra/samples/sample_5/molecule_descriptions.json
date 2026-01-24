@@ -1,0 +1,10 @@
+{
+  "solute": {
+    "smiles": "O=S(=O)(Nc1ccc(Cl)cc1)c1ccccc1",
+    "description": "This molecule, $N$-(4-chlorophenyl)benzenesulfonamide, consists of two aromatic rings\u2014a phenyl ring and a 4-chlorophenyl ring\u2014linked by a central sulfonamide bridge. The key functional groups include the sulfonamide group ($-SO_2NH-$) and a chlorine atom substituted at the para position of one benzene ring. It is a medium-sized, polar molecule characterized by a secondary amine that acts as a hydrogen bond donor and two sulfonyl oxygens that serve as hydrogen bond acceptors. The structure is distinctive for its rigid, aromatic character flanking a polar, tetrahedral sulfur center."
+  },
+  "solvent": {
+    "smiles": "CCCCCC",
+    "description": "This molecule is a linear, unbranched aliphatic chain consisting of six carbon atoms saturated with hydrogens. It contains no functional groups or heteroatoms, consisting entirely of C-C and C-H single bonds characteristic of a saturated alkane. The structure is strictly nonpolar and lacks any capacity for hydrogen bonding, as it contains no electronegative atoms or acidic protons. Its distinctive feature is its simple, flexible hexyl backbone, which provides a uniform hydrophobic profile across its medium-sized molecular frame."
+  }
+}
