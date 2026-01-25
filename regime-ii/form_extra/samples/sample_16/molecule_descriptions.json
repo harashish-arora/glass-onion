@@ -1,0 +1,10 @@
+{
+  "solute": {
+    "smiles": "O=C(O)CCC(=O)O",
+    "description": "This molecule is a linear, four-carbon saturated chain with no branching or rings. It is a dicarboxylic acid, featuring terminal carboxylic acid groups at both the C1 and C4 positions. The structure is highly polar and possesses significant hydrogen bonding capacity, with four oxygen atoms acting as potential acceptors and two hydroxyl groups serving as donors. Its small molecular size and symmetrical arrangement of acidic groups make it a simple yet highly functionalized organic acid."
+  },
+  "solvent": {
+    "smiles": "CC(=O)O",
+    "description": "This molecule consists of a short, two-carbon linear chain where a terminal methyl group is covalently bonded to a carboxyl carbon. The primary functional group is a carboxylic acid, featuring a carbonyl oxygen and a hydroxyl group both attached to the second carbon atom. It is a small, highly polar molecule with significant hydrogen bonding capacity, acting as both a donor through its hydroxyl group and an acceptor via its oxygen atoms. Its distinctive character arises from the compact arrangement of a simple alkyl group directly adjacent to a highly polar, acidic functional group."
+  }
+}

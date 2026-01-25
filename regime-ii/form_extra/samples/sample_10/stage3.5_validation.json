@@ -1,0 +1,8 @@
+{
+  "is_valid": true,
+  "issues_found": [],
+  "corrections": [],
+  "corrected_explanation": null,
+  "confidence": "high",
+  "raw_response": "{\n  \"is_valid\": true,\n  \"issues_found\": [],\n  \"corrections\": [],\n  \"corrected_explanation\": null,\n  \"confidence\": \"high\"\n}"
+}

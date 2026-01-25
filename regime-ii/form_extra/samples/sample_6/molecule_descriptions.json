@@ -1,0 +1,10 @@
+{
+  "solute": {
+    "smiles": "O=C1CC(c2ccc(O)cc2)Oc2cc(O)cc(O)c21",
+    "description": "This molecule is a flavanone consisting of a 2,3-dihydrochromen-4-one (chromanone) core substituted at the C2 position with a para-hydroxyphenyl ring. It features three phenolic hydroxyl groups located at the 4', 5, and 7 positions, along with a cyclic ketone at the C4 position and an ether linkage within the pyran ring. The structure is highly polar and possesses significant hydrogen bonding capacity, acting as a donor through its three hydroxyl groups and an acceptor via the carbonyl and ether oxygens. Its distinctive character arises from the saturated C2-C3 bond in the heterocyclic ring, which creates a chiral center at C2 and distinguishes it from its flavone counterparts."
+  },
+  "solvent": {
+    "smiles": "CCCCCC",
+    "description": "This molecule is a linear, unbranched alkane chain consisting of six carbon atoms connected by single covalent bonds. It lacks any functional groups, heteroatoms, or sites of unsaturation, making it a purely saturated hydrocarbon. The structure is highly nonpolar and possesses no capacity for hydrogen bonding as it lacks both donors and acceptors. Its character is defined by its simple aliphatic nature, small molecular size, and flexible straight-chain geometry."
+  }
+}

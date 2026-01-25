@@ -1,0 +1,10 @@
+{
+  "solute": {
+    "smiles": "COc1ccc2c(c1)c(CC(=O)O)c(C)n2C(=O)c1ccc(Cl)cc1",
+    "description": "This molecule features a 2-methyl-5-methoxyindole core that is heavily substituted at the 1 and 3 positions. The indole nitrogen is acylated with a *p*-chlorobenzoyl group, while the C3 position bears an acetic acid moiety. Physicochemically, the structure is a large, bulky organic acid characterized by a balance of a highly polar, hydrogen-bonding carboxylic acid group and two distinct hydrophobic aromatic systems. The presence of the methoxy group and the amide/ketone carbonyls provides multiple hydrogen-bond acceptance sites, while the chlorine atom adds to the molecule's overall size and lipophilic character."
+  },
+  "solvent": {
+    "smiles": "CCCCCC",
+    "description": "This molecule is a linear, unbranched aliphatic chain consisting of six sp3-hybridized carbon atoms. It is a saturated hydrocarbon (alkane) containing exclusively carbon-carbon and carbon-hydrogen single bonds, with no functional groups or heteroatoms present. The structure is entirely nonpolar and lacks any capacity for hydrogen bonding as either a donor or an acceptor. With a molecular weight of approximately 86 g/mol, its character is defined solely by its flexible, hydrophobic carbon backbone."
+  }
+}

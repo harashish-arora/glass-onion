@@ -1,0 +1,10 @@
+{
+  "solute": {
+    "smiles": "Nc1ccc(O)c(C(=O)O)c1",
+    "description": "This molecule consists of a central benzene ring substituted to form a 5-amino-2-hydroxybenzoic acid framework. It features a carboxylic acid group and a phenolic hydroxyl group in an ortho orientation, with a primary amine group positioned para to the hydroxyl. The structure is small and highly polar, possessing significant hydrogen-bonding capacity as both a donor and acceptor across its three distinct functional groups. This specific arrangement of acidic, basic, and phenolic moieties on a compact aromatic core allows for complex electronic interactions and potential zwitterionic character."
+  },
+  "solvent": {
+    "smiles": "ClC(Cl)(Cl)Cl",
+    "description": "This molecule consists of a single central carbon atom covalently bonded to four chlorine atoms, forming a symmetrical tetrahedral halomethane structure. It is a fully chlorinated perhalocarbon, characterized by the complete replacement of hydrogen atoms with electronegative chloro groups. Despite the polarity of the individual carbon-chlorine bonds, the molecule is nonpolar overall because its high geometric symmetry causes the individual dipole moments to cancel. This small, compact molecule lacks hydrogen atoms, precluding any hydrogen-bond donating capacity and resulting in very weak hydrogen-bond accepting potential."
+  }
+}

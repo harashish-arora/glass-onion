@@ -1,0 +1,10 @@
+{
+  "solute": {
+    "smiles": "CCn1cc(C(=O)O)c(=O)c2cc(F)c(N3CCNC(C)C3)c(F)c21",
+    "description": "This molecule is a fluoroquinolone derivative featuring a 4-oxo-1,4-dihydroquinoline-3-carboxylic acid core with an $N$-ethyl substituent at the 1-position. The bicyclic scaffold is specifically substituted with fluorine atoms at the 6 and 8 positions and a 3-methylpiperazin-1-yl group at the 7-position. It is a medium-sized, highly polar molecule characterized by a dense array of hydrogen bond acceptors\u2014including the carboxylate, pyridone carbonyl, and multiple nitrogen and fluorine atoms\u2014alongside hydrogen bond donors provided by the carboxylic acid and the secondary amine of the piperazine ring."
+  },
+  "solvent": {
+    "smiles": "CCCCCCCCO",
+    "description": "This molecule consists of a linear, unbranched eight-carbon aliphatic chain. It features a single primary hydroxyl group (-OH) located at the terminal position, characterizing it as a straight-chain primary alcohol. The structure is defined by a large nonpolar hydrophobic tail and a small polar head capable of both donating and accepting hydrogen bonds. Its distinctive nature lies in the specific length of the octyl chain, which creates a significant imbalance between the bulky nonpolar region and the single hydrophilic functional group."
+  }
+}
