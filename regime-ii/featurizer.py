@@ -134,8 +134,64 @@ class MoleculeFeaturizer:
         return {
             "pred_Tm": pred_Tm, "abraham_A": (rd_hbd * 0.1 + acid_ref * 0.4), 
             "abraham_B": (rd_hba * 0.1 + base_ref * 0.3), "abraham_S": proxy_S, 
-            "abraham_E": proxy_E, "abraham_V": v_total / 100.0
+            "abraham_E": proxy_E, "abraham_V": v_total / 100.0 #,
+            # "pred_S": self._joback_entropy(mol)  # Estimated molar entropy
         }
+    
+    def _joback_entropy(self, mol):
+        """
+        Joback-Reid group contribution method for standard molar entropy (S°).
+        S° = 41.7 + Σ(group contributions)
+        Units: J/(mol·K)
+        """
+        # Joback-Reid entropy group contributions (J/mol·K)
+        joback_S = {
+            # Non-ring groups
+            "ch3": ("[CH3;X4;!R]", 23.06),      # -CH3
+            "ch2_c": ("[CH2;X4;!R]", 22.88),    # -CH2- (chain)
+            "ch_c": ("[CH1;X4;!R]", 21.74),     # >CH- (chain)
+            "c_c": ("[CH0;X4;!R]", 21.32),      # >C< (chain)
+            # Ring groups
+            "ch2_r": ("[CH2;X4;R]", 25.14),     # -CH2- (ring)
+            "ch_r": ("[CH1;X4;R]", 25.04),      # >CH- (ring)
+            "c_r": ("[CH0;X4;R]", 25.00),       # >C< (ring)
+            # Double bonds
+            "c=c_c": ("[CX3;!R]=[CX3;!R]", 24.28),   # =CH2, =CH-, =C<
+            "c=c_r": ("[c,C;R]=[c,C;R]", 24.96),     # aromatic/ring double bond
+            # Halogens
+            "F": ("[F]", 13.33),
+            "Cl": ("[Cl]", 33.36),
+            "Br": ("[Br]", 42.00),
+            "I": ("[I]", 51.28),
+            # Oxygen groups
+            "oh_a": ("[OH;!#6a]", 28.12),       # -OH (aliphatic)
+            "oh_p": ("[OH;a]", 32.00),          # -OH (phenolic)
+            "ether_c": ("[OD2;!R]([#6])[#6]", 25.05),   # -O- (chain)
+            "ether_r": ("[OD2;R]([#6])[#6]", 28.00),    # -O- (ring)
+            "co": ("[CX3]=[OX1]", 31.93),       # >C=O
+            "ester": ("[CX3](=[OX1])[OX2H0]", 38.00),   # -COO-
+            # Nitrogen groups
+            "nh2": ("[NH2]", 27.78),            # -NH2
+            "nh_c": ("[NH1;!R]", 26.20),        # >NH (chain)
+            "nh_r": ("[NH1;R]", 29.20),         # >NH (ring)
+            "nitro": ("[NX3](=[OX1])=[OX1]", 45.00),   # -NO2
+            "nitrile": ("[NX1]#[CX2]", 28.00),  # -C≡N
+            # Sulfur
+            "sh": ("[SH]", 35.00),              # -SH
+            "s_c": ("[SX2;!R]([#6])[#6]", 32.00),  # -S- (chain)
+        }
+        
+        # Base value
+        S_sum = 41.7
+        
+        # Sum contributions
+        for name, (smarts, contrib) in joback_S.items():
+            pattern = Chem.MolFromSmarts(smarts)
+            if pattern:
+                matches = len(mol.GetSubstructMatches(pattern))
+                S_sum += matches * contrib
+        
+        return S_sum
 
     def _calc_feats(self, smiles):
         mol = self._get_mol(smiles)

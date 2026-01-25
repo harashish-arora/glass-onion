@@ -1,0 +1,19 @@
+
+\begin{table}[htbp]
+\centering
+\caption{Transformer Benefit Across Different Solvent Regimes}
+\label{tab:transformer_regimes}
+\begin{tabular}{lcccc}
+\toprule
+Regime & N & Mean $\Delta$RMSE & Median $\Delta$RMSE & p-value \\
+       & Solvents & (logS) & (logS) & (vs. complement) \\
+\midrule
+Data-Scarce (n≤30) & 38 & -0.0009 & -0.0043 & 0.322 \\
+Data-Rich (n>30) & 53 & -0.0063 & -0.0020 & — \\
+Multifunctional (≥3 heteroatoms) & 13 & -0.0089 & -0.0176 & 0.801 \\
+Simple (<3 heteroatoms) & 78 & -0.0033 & -0.0018 & — \\
+Difficult (high baseline error) & 23 & +0.0040 & -0.0042 & 0.220 \\
+Easy (low baseline error) & 68 & -0.0068 & -0.0021 & — \\
+\bottomrule
+\end{tabular}
+\end{table}

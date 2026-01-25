@@ -56,7 +56,7 @@ def main():
     for seed in SEEDS:
         print(f"\n--- Seed {seed} ---")
         model = CatBoostRegressor(
-            iterations=5000,
+            iterations=10000,
             learning_rate=0.02,
             depth=8,
             l2_leaf_reg=5,
