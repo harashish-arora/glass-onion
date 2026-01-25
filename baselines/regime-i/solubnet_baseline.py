@@ -4,8 +4,6 @@ Baselining SolubNet (Graph Neural Network) for Aqueous Solubility Prediction
 
 Trains SolubNet model using 10-fold cross-validation with multiple random seeds
 on aqueous solubility datasets. Results are aggregated and saved to benchmark_results/.
-
-Google Colab Compatible Version
 """
 
 import os
@@ -22,51 +20,15 @@ from tqdm.auto import tqdm
 import copy
 import time
 
-# Check if running in Colab
-try:
-    import google.colab
-    IN_COLAB = True
-    print("Running in Google Colab")
-except:
-    IN_COLAB = False
-    print("Running locally")
-
-# Install required packages for Colab
-if IN_COLAB:
-    print("\n" + "="*60)
-    print("Installing required packages...")
-    print("="*60)
-    !pip install -q dgl
-    !pip install -q rdkit
-    !pip install -q torch
-    !pip install -q scikit-learn
-    !pip install -q tqdm
-    print("✓ Packages installed successfully\n")
-
-# Import after installation
+# Import PyTorch and DGL
 import torch as th
 import torch.nn as nn
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 import dgl
 
-# Setup for Colab: Mount Google Drive or use sample data
-if IN_COLAB:
-    # Option 1: Mount Google Drive (uncomment if data is in Drive)
-    # from google.colab import drive
-    # drive.mount('/content/drive')
-    # BASE_DIR = '/content/drive/MyDrive/your_project_folder'
-    
-    # Option 2: Clone from GitHub or download
-    print("Setting up SolubNetD...")
-    if not os.path.exists('SolubNetD'):
-        print("Please upload SolubNetD folder or provide download link")
-        print("You can use: !git clone <your-repo-url>")
-    
-    BASE_DIR = '/content'
-    sys.path.insert(0, os.path.join(BASE_DIR, 'SolubNetD'))
-else:
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    sys.path.insert(0, os.path.join(BASE_DIR, 'SolubNetD'))
+# Setup paths
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(BASE_DIR, 'SolubNetD'))
 
 # Import SolubNet modules
 try:
@@ -74,7 +36,7 @@ try:
     print("✓ SolubNet modules imported successfully\n")
 except ImportError as e:
     print(f"Error importing SolubNet modules: {e}")
-    print("Please ensure SolubNetD folder is in the correct location")
+    print("Please ensure SolubNetD folder is in the same directory as this script")
     sys.exit(1)
 
 warnings.filterwarnings("ignore")
@@ -107,6 +69,9 @@ def setup_device():
         device = th.device("cuda:0")
         print(f"✓ Using GPU: {th.cuda.get_device_name(0)}")
         print(f"  GPU Memory: {th.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB\n")
+    # elif th.backends.mps.is_available():
+    #     device = th.device("mps")
+    #     print("✓ Using Apple Silicon GPU (MPS)\n")
     else:
         device = th.device("cpu")
         print("✓ Using CPU\n")
@@ -138,8 +103,7 @@ def load_graph_data(df, device):
     data = []
     failed = 0
     
-    for idx, row in tqdm(df.iterrows(), total=len(df), desc="  Creating graphs", 
-                         disable=not IN_COLAB):
+    for idx, row in tqdm(df.iterrows(), total=len(df), desc="  Creating graphs"):
         try:
             graph = Utility.ParseSMILES(
                 row['SMILES'], 
@@ -232,8 +196,7 @@ def train_one_fold(fold, train_data, val_data, seed, device):
         factor=0.9, 
         patience=3, 
         threshold=0.0001,
-        min_lr=0.000001,
-        verbose=False
+        min_lr=0.000001
     )
     
     criterion = nn.MSELoss()
@@ -243,7 +206,7 @@ def train_one_fold(fold, train_data, val_data, seed, device):
     best_model = None
     best_epoch = 0
     patience_counter = 0
-    max_patience = 20
+    max_patience = 40
     
     batch_idx = create_mini_batches(len(train_data), BATCH_SIZE)
     
@@ -652,10 +615,6 @@ def main():
     print("✓ BENCHMARK COMPLETE")
     print("="*80)
     print(f"All models saved to: {OUTPUT_DIR}/")
-    
-    if IN_COLAB:
-        print("\n💡 Tip: Download results from the Files panel on the left")
-        print("   or mount Google Drive to save results permanently")
 
 
 if __name__ == "__main__":

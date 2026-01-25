@@ -150,7 +150,7 @@ class GINEncoder(nn.Module):
     def __init__(self, in_dim, hidden_dim, num_layers):
         super().__init__()
         self.layers = nn.ModuleList()
-        # First layer
+        # First layer 
         mlp = nn.Sequential(
             nn.Linear(in_dim, hidden_dim),
             nn.ReLU(),
