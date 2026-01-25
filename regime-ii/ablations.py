@@ -20,7 +20,7 @@ TRAIN_FILE = os.path.join(DATA_DIR, "train.csv")
 TEST_FILE = os.path.join(DATA_DIR, "test.csv")
 OOF_EMBED_FILE = "train_embeddings.csv"
 TRANSFORMER_PATH = "transformer.pth"
-SEED = 42
+SEED = 123
 SEEDS = [42, 101, 123, 456, 789]  # For baseline variance estimation
 
 warnings.filterwarnings("ignore")

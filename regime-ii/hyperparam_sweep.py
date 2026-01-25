@@ -25,7 +25,7 @@ MODEL_DIR = "model"
 TRAIN_FILE = os.path.join(DATA_DIR, "train.csv")
 TEST_FILE = os.path.join(DATA_DIR, "test.csv")
 
-N_TRIALS = 30
+N_TRIALS = 10
 VAL_SIZE = 0.15  # 15% for validation
 RANDOM_STATE = 42
 
@@ -33,8 +33,9 @@ RANDOM_STATE = 42
 from train import load_hyper_features, generate_test_hyper_features, OOF_EMBED_FILE
 
 
-def objective(trial, X_train, X_val, y_train, y_val, monotone_constraints):
-    """Optuna objective function for CatBoost hyperparameter optimization."""
+def objective(trial, X, y, monotone_constraints):
+    """Optuna objective function with 5-fold CV."""
+    from sklearn.model_selection import KFold
     
     # Define hyperparameter search space
     params = {
@@ -50,21 +51,33 @@ def objective(trial, X_train, X_val, y_train, y_val, monotone_constraints):
     
     # Fixed params
     params['random_seed'] = RANDOM_STATE
-    params['verbose'] = 100
+    params['verbose'] = 0  # Quiet during CV
     params['thread_count'] = -1
     params['monotone_constraints'] = monotone_constraints
     params['loss_function'] = 'RMSE'
     
-    # Train model
-    model = CatBoostRegressor(**params)
+    # 5-fold CV
+    kf = KFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
+    cv_scores = []
+    
     print(f"\n>>> Trial {trial.number}: depth={params['depth']}, iter={params['iterations']}, lr={params['learning_rate']:.4f}")
-    model.fit(X_train, y_train, eval_set=(X_val, y_val), early_stopping_rounds=100)
     
-    # Evaluate on validation
-    preds = model.predict(X_val)
-    rmse = np.sqrt(mean_squared_error(y_val, preds))
+    for fold, (train_idx, val_idx) in enumerate(kf.split(X)):
+        X_train, X_val = X[train_idx], X[val_idx]
+        y_train, y_val = y[train_idx], y[val_idx]
+        
+        model = CatBoostRegressor(**params)
+        model.fit(X_train, y_train, eval_set=(X_val, y_val), early_stopping_rounds=100, verbose=False)
+        
+        preds = model.predict(X_val)
+        rmse = np.sqrt(mean_squared_error(y_val, preds))
+        cv_scores.append(rmse)
+        print(f"  Fold {fold+1}/5: RMSE={rmse:.4f}")
     
-    return rmse
+    mean_rmse = np.mean(cv_scores)
+    print(f"  Mean CV RMSE: {mean_rmse:.4f}")
+    
+    return mean_rmse
 
 
 def run_sweep():
@@ -103,20 +116,14 @@ def run_sweep():
     n_features = X_selected.shape[1]
     monotone_constraints = [0] * (n_features - 4) + [1, 1, 1, -1]  # T, T_m, T_red up; 1/T down
     
-    # 4. Train/Val split
-    print("\n[3] Splitting data...")
-    X_train, X_val, y_train, y_val = train_test_split(
-        X_selected, y_full, test_size=VAL_SIZE, random_state=RANDOM_STATE
-    )
-    print(f"  Train: {len(X_train)}, Val: {len(X_val)}")
-    
-    # 5. Run Optuna
-    print("\n[4] Running Optuna optimization...")
+    # 4. Run Optuna with 5-fold CV
+    print("\n[3] Running Optuna optimization with 5-fold CV...")
+    print("  (Each trial runs 5 folds, ~10 min per trial)")
     print("="*60)
     
     study = optuna.create_study(direction='minimize', sampler=optuna.samplers.TPESampler(seed=RANDOM_STATE))
     study.optimize(
-        lambda trial: objective(trial, X_train, X_val, y_train, y_val, monotone_constraints),
+        lambda trial: objective(trial, X_selected, y_full, monotone_constraints),
         n_trials=N_TRIALS,
         show_progress_bar=True
     )

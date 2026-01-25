@@ -1,0 +1,7 @@
+,Delta_RMSE,Delta_RMSE,Delta_RMSE,Delta_RMSE,Pct_Improvement,Pct_Improvement
+,mean,median,std,count,mean,median
+complexity_quartile,,,,,,
+Q1,-0.0043,0.001,0.0353,23,-0.0377,0.2967
+Q2,-0.0005,0.0029,0.0387,23,-1.4778,0.6914
+Q3,-0.009,-0.0038,0.0284,22,-0.1861,-0.6212
+Q4,-0.0027,-0.0131,0.0462,23,-2.1637,-2.2537

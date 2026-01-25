@@ -11,7 +11,7 @@ from catboost import CatBoostRegressor
 from featurizer import MoleculeFeaturizer
 
 # Config
-SEED = 101
+SEED = 123
 SEEDS = [42, 101, 123, 456, 789]  # For baseline variance estimation
 TRAIN_PATH = "./data/train.csv"
 TEST_PATH = "./data/test.csv"

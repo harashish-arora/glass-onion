@@ -114,13 +114,13 @@ mose_cyc5,TOPOLOGICAL
 mose_cyc6,TOPOLOGICAL
 mose_cyc7,TOPOLOGICAL
 mose_cyc8,TOPOLOGICAL
-mose_benzene,TOPOLOGICAL
-mose_branched_4,TOPOLOGICAL
-mose_star_5,TOPOLOGICAL
-mose_fused,TOPOLOGICAL
 mose_path3,TOPOLOGICAL
 mose_path4,TOPOLOGICAL
 mose_path5,TOPOLOGICAL
+mose_branched_4,TOPOLOGICAL
+mose_star_5,TOPOLOGICAL
+mose_benzene,TOPOLOGICAL
+mose_fused,TOPOLOGICAL
 BalabanJ,TOPOLOGICAL
 BertzCT,TOPOLOGICAL
 HallKierAlpha,TOPOLOGICAL
