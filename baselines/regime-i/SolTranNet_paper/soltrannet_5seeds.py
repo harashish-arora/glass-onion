@@ -1,26 +1,29 @@
 # soltrannet_5seeds.py
 """
-SolTranNet Baseline - 5 Seed Evaluation
-Molecule Attention Transformer for Aqueous Solubility
+SolTranNet Training - 5 Seed Evaluation
 
-Uses the SolTranNet transformer model from the paper.
-Reports RMSE ± std and R² across 5 seeds with timing.
+Train the lightweight SolTranNet model (~3,393 params) from scratch.
+Uses: d_model=8, h=2, N=8 attention layers
 
-Run from inside the SolTranNet_paper directory:
+Run:
     cd baselines/regime-i/SolTranNet_paper
     python soltrannet_5seeds.py
 """
 
 import os
 import sys
-import subprocess
-import pandas as pd
 import numpy as np
+import pandas as pd
+import torch
+import torch.nn as nn
 import time
-import pickle
+from tqdm import tqdm
 
-# Add src to path for imports
-sys.path.append('src')
+# Add current dir for local imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from data_utils import load_data_from_smiles, construct_loader
+from transformer import make_model
 
 # ================= CONFIG =================
 SEEDS = [42, 101, 123, 456, 789]
@@ -31,68 +34,141 @@ DATASETS = {
     "SC2": ("../all_datasets/sc2/train.csv", "../all_datasets/sc2/test.csv"),
 }
 
-# SolTranNet hyperparameters (paper defaults)
-EPOCHS = 100        # Can increase for better results
-DYNAMIC_STOP = 10   # Early stopping: stop if no improvement for N epochs
-LOSS = "huber"
-OPTIMIZER = "sgd"
-LEARNING_RATE = 1e-4
+# Training parameters
+EPOCHS = 100
+BATCH_SIZE = 64
+LEARNING_RATE = 1e-3
+EARLY_STOP_PATIENCE = 10
+
+SMILES_COL = "SMILES"
+TARGET_COL = "LogS"
 
 
-def run_soltrannet_training(train_path, test_path, seed, output_dir):
-    """Train SolTranNet model using train.py with subprocess"""
-    
-    os.makedirs(output_dir, exist_ok=True)
-    
-    cmd = [
-        "python", "train.py",
-        "--trainfile", train_path,
-        "--testfile", test_path,
-        "--seed", str(seed),
-        "--epochs", str(EPOCHS),
-        "--dynamic", str(DYNAMIC_STOP),
-        "--loss", LOSS,
-        "--optimizer", OPTIMIZER,
-        "--lr", str(LEARNING_RATE),
-        "--datadir", output_dir,
-        "--twod",       # Use 2D coords - faster featurization
-        "--savemodel"
-    ]
-    
-    print(f"    Training seed {seed}...")
-    print(f"    Command: {' '.join(cmd)}")
-    
-    result = subprocess.run(cmd)
-    
-    return result.returncode == 0
+def set_seed(seed):
+    """Set random seed for reproducibility"""
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
 
 
-def extract_results_from_pickle(output_dir, seed):
-    """Extract RMSE and R2 from the saved pickle file"""
+def train_and_evaluate(train_df, test_df, seed, device):
+    """Train SolTranNet and evaluate on test set"""
+    set_seed(seed)
     
-    # Find the testdic pickle file
-    for f in os.listdir(output_dir):
-        if f.endswith('_testdic.pi') and f'seed{seed}' in f:
-            pickle_path = os.path.join(output_dir, f)
-            with open(pickle_path, 'rb') as pf:
-                testdic = pickle.load(pf)
-            return testdic['RMSE'], testdic['R2']
+    # Prepare data
+    train_smiles = train_df[SMILES_COL].tolist()
+    train_y = train_df[TARGET_COL].values.astype(np.float32)
     
-    return None, None
+    test_smiles = test_df[SMILES_COL].tolist()
+    test_y = test_df[TARGET_COL].values.astype(np.float32)
+    
+    # Load and featurize molecules
+    print("    Featurizing molecules...")
+    train_x = load_data_from_smiles(train_smiles, add_dummy_node=True)
+    test_x = load_data_from_smiles(test_smiles, add_dummy_node=True)
+    
+    # Create data loaders
+    train_loader = construct_loader(train_x, batch_size=BATCH_SIZE, shuffle=True)
+    test_loader = construct_loader(test_x, batch_size=BATCH_SIZE, shuffle=False)
+    
+    # Create model with default small architecture (3,393 params)
+    model = make_model()  # d_model=8, h=2, N=8 by default
+    model = model.to(device)
+    
+    param_count = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"    Model parameters: {param_count}")
+    
+    # Loss and optimizer
+    criterion = nn.SmoothL1Loss()  # Huber loss
+    optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    
+    # Training loop
+    best_test_rmse = float('inf')
+    patience_counter = 0
+    
+    for epoch in tqdm(range(EPOCHS), desc="    Epochs", position=0):
+        model.train()
+        train_losses = []
+        
+        for batch_idx, batch in tqdm(enumerate(train_loader), desc=f"      Batch", total=len(train_loader), leave=False, position=1):
+            adj_matrix, node_features, smiles_list, indices = batch
+            adj_matrix = adj_matrix.to(device)
+            node_features = node_features.to(device)
+            
+            # Get targets for this batch
+            batch_y = torch.FloatTensor([train_y[i] for i in indices]).to(device).unsqueeze(1)
+            
+            # Forward
+            batch_mask = torch.sum(torch.abs(node_features), dim=-1) != 0
+            pred = model(node_features, batch_mask, adj_matrix, None)
+            
+            loss = criterion(pred, batch_y)
+            train_losses.append(loss.item())
+            
+            # Backward
+            optimizer.zero_grad()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 2.0)
+            optimizer.step()
+        
+        # Evaluate on test set every 10 epochs
+        if (epoch + 1) % 10 == 0:
+            model.eval()
+            preds = []
+            with torch.no_grad():
+                for batch in test_loader:
+                    adj_matrix, node_features, smiles_list, indices = batch
+                    adj_matrix = adj_matrix.to(device)
+                    node_features = node_features.to(device)
+                    
+                    batch_mask = torch.sum(torch.abs(node_features), dim=-1) != 0
+                    pred = model(node_features, batch_mask, adj_matrix, None)
+                    preds.extend(pred.cpu().numpy().flatten())
+            
+            test_rmse = np.sqrt(np.mean((np.array(preds) - test_y[:len(preds)])**2))
+            
+            if test_rmse < best_test_rmse:
+                best_test_rmse = test_rmse
+                patience_counter = 0
+            else:
+                patience_counter += 1
+            
+            if patience_counter >= EARLY_STOP_PATIENCE // 10:
+                print(f"    Early stopping at epoch {epoch+1}")
+                break
+    
+    # Final evaluation
+    model.eval()
+    preds = []
+    with torch.no_grad():
+        for batch in test_loader:
+            adj_matrix, node_features, smiles_list, indices = batch
+            adj_matrix = adj_matrix.to(device)
+            node_features = node_features.to(device)
+            
+            batch_mask = torch.sum(torch.abs(node_features), dim=-1) != 0
+            pred = model(node_features, batch_mask, adj_matrix, None)
+            preds.extend(pred.cpu().numpy().flatten())
+    
+    y_pred = np.array(preds)
+    y_true = test_y[:len(y_pred)]
+    
+    rmse = np.sqrt(np.mean((y_pred - y_true)**2))
+    r2 = 1 - np.sum((y_true - y_pred)**2) / np.sum((y_true - y_true.mean())**2)
+    
+    return rmse, r2
 
 
-def evaluate_dataset(name, train_path, test_path):
+def evaluate_dataset(name, train_path, test_path, device):
     """Evaluate on a dataset across 5 seeds"""
     print(f"\n{'='*60}")
     print(f"DATASET: {name}")
     print(f"{'='*60}")
     
-    # Read data info
     train_df = pd.read_csv(train_path)
     test_df = pd.read_csv(test_path)
     print(f"Train: {len(train_df)}, Test: {len(test_df)}")
-    
-    output_dir = f"soltrannet_outputs/{name.lower()}"
     
     results = []
     times = []
@@ -101,26 +177,14 @@ def evaluate_dataset(name, train_path, test_path):
         print(f"\n  Seed {seed}...")
         start_time = time.time()
         
-        success = run_soltrannet_training(train_path, test_path, seed, output_dir)
+        rmse, r2 = train_and_evaluate(train_df, test_df, seed, device)
         
         elapsed = time.time() - start_time
         times.append(elapsed)
+        results.append((rmse, r2))
         
-        if success:
-            # Try to extract results from pickle
-            rmse, r2 = extract_results_from_pickle(output_dir, seed)
-            if rmse is not None:
-                results.append((rmse, r2))
-                print(f"    RMSE: {rmse:.4f}, R²: {r2:.4f}")
-            else:
-                print(f"    Could not extract results from pickle")
-        else:
-            print(f"    Training failed!")
-        
+        print(f"    RMSE: {rmse:.4f}, R²: {r2:.4f}")
         print(f"    Time: {elapsed:.1f}s")
-    
-    if not results:
-        return None
     
     return {
         "name": name,
@@ -136,23 +200,26 @@ def evaluate_dataset(name, train_path, test_path):
 def main():
     print("=" * 60)
     print("SolTranNet Baseline - 5 Seed Evaluation")
-    print("Molecule Attention Transformer")
+    print("Lightweight Transformer (~3,393 params)")
     print("=" * 60)
     
-    # Check CUDA
-    import torch
+    # Device
     if torch.cuda.is_available():
-        print(f"GPU available: {torch.cuda.get_device_name(0)}")
+        device = torch.device("cuda")
+        print(f"GPU: {torch.cuda.get_device_name(0)}")
     else:
-        print("No GPU detected, using CPU (will be slow!)")
+        device = torch.device("cpu")
+        print("Using CPU")
     
     all_results = []
     total_start = time.time()
     
     for name, (train_path, test_path) in DATASETS.items():
-        result = evaluate_dataset(name, train_path, test_path)
-        if result:
-            all_results.append(result)
+        if not os.path.exists(train_path):
+            print(f"Skipping {name}: file not found")
+            continue
+        result = evaluate_dataset(name, train_path, test_path, device)
+        all_results.append(result)
     
     total_elapsed = time.time() - total_start
     

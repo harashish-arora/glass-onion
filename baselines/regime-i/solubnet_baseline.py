@@ -31,17 +31,8 @@ except:
     IN_COLAB = False
     print("Running locally")
 
-# Install required packages for Colab
-if IN_COLAB:
-    print("\n" + "="*60)
-    print("Installing required packages...")
-    print("="*60)
-    !pip install -q dgl
-    !pip install -q rdkit
-    !pip install -q torch
-    !pip install -q scikit-learn
-    !pip install -q tqdm
-    print("✓ Packages installed successfully\n")
+# Note: For Colab, install packages manually before running:
+# !pip install -q dgl rdkit torch scikit-learn tqdm
 
 # Import after installation
 import torch as th
@@ -49,24 +40,9 @@ import torch.nn as nn
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 import dgl
 
-# Setup for Colab: Mount Google Drive or use sample data
-if IN_COLAB:
-    # Option 1: Mount Google Drive (uncomment if data is in Drive)
-    # from google.colab import drive
-    # drive.mount('/content/drive')
-    # BASE_DIR = '/content/drive/MyDrive/your_project_folder'
-    
-    # Option 2: Clone from GitHub or download
-    print("Setting up SolubNetD...")
-    if not os.path.exists('SolubNetD'):
-        print("Please upload SolubNetD folder or provide download link")
-        print("You can use: !git clone <your-repo-url>")
-    
-    BASE_DIR = '/content'
-    sys.path.insert(0, os.path.join(BASE_DIR, 'SolubNetD'))
-else:
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    sys.path.insert(0, os.path.join(BASE_DIR, 'SolubNetD'))
+# Setup base directory
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(BASE_DIR, 'SolubNetD'))
 
 # Import SolubNet modules
 try:
@@ -86,14 +62,14 @@ warnings.filterwarnings("ignore")
 DATASETS = ["aqsoldb", "esol", "sc2"]
 ALL_DATASETS_DIR = os.path.join(BASE_DIR, "all_datasets")
 OUTPUT_DIR = os.path.join(BASE_DIR, "benchmark_results")
-SEEDS = [42]  # Single seed with 10-fold CV for computational efficiency
+SEEDS = [42, 101, 123, 456, 789]  # 5 seeds with 10-fold CV each for fair comparison
 
 # SolubNet hyperparameters
 NUM_FEATURES = 4
 NUM_LABELS = 1
 FEATURE_STR = 'h'
 LEARNING_RATE = 0.001
-BATCH_SIZE = 32
+BATCH_SIZE = 2048
 MAX_EPOCHS = 500
 N_FOLDS = 10
 
@@ -137,25 +113,27 @@ def load_graph_data(df, device):
     print(f"  Converting {len(df)} molecules to graphs...")
     data = []
     failed = 0
-    
-    for idx, row in tqdm(df.iterrows(), total=len(df), desc="  Creating graphs", 
-                         disable=not IN_COLAB):
+
+    for idx, row in tqdm(df.iterrows(), total=len(df), desc="  Creating graphs",
+                         disable=False):  # Always show progress bars
         try:
             graph = Utility.ParseSMILES(
-                row['SMILES'], 
-                NUM_FEATURES, 
-                FEATURE_STR, 
+                row['SMILES'],
+                NUM_FEATURES,
+                FEATURE_STR,
                 device
             )
+            # Ensure graph is on the correct device
+            graph = graph.to(device)
             prop = float(row['LogS'])
             data.append([row['SMILES'], graph, prop])
         except Exception as e:
             failed += 1
             continue
-    
+
     if failed > 0:
         print(f"  ⚠ Warning: Failed to process {failed}/{len(df)} molecules")
-    
+
     return data
 
 
@@ -174,14 +152,31 @@ def setup_seed(seed):
 
 
 def get_predictions(graphs, labels, net):
-    """Get predictions for a batch of graphs."""
-    num_samples = len(graphs)
-    predictions = th.zeros(num_samples)
-    
-    for i in range(num_samples):
-        predictions[i] = th.sum(net(graphs[i]), dim=0)
-    
-    return predictions, labels
+    """Get predictions for a batch of graphs using efficient DGL batching."""
+    # Batch all graphs together for efficient GPU processing
+    batched_graph = dgl.batch(graphs)
+
+    # Forward pass on the entire batch at once
+    predictions = net(batched_graph)
+
+    # Efficient per-graph summation using scatter_add (avoids Python loops)
+    batch_num_nodes = batched_graph.batch_num_nodes()
+
+    # Create segment IDs for each node (which graph it belongs to)
+    segment_ids = th.repeat_interleave(
+        th.arange(len(graphs), device=predictions.device),
+        batch_num_nodes
+    )
+
+    # Efficient segmented reduction using scatter_add
+    graph_predictions = th.zeros(len(graphs), predictions.shape[1],
+                                 device=predictions.device, dtype=predictions.dtype)
+    graph_predictions.scatter_add_(0, segment_ids.unsqueeze(1).expand_as(predictions), predictions)
+
+    # Squeeze to get final predictions per graph
+    graph_predictions = graph_predictions.squeeze(1)
+
+    return graph_predictions, labels
 
 
 def create_mini_batches(num_samples, batch_size):
@@ -246,11 +241,14 @@ def train_one_fold(fold, train_data, val_data, seed, device):
     max_patience = 20
     
     batch_idx = create_mini_batches(len(train_data), BATCH_SIZE)
-    
-    for epoch in range(MAX_EPOCHS):
+
+    # Progress bar for epochs
+    pbar = tqdm(range(MAX_EPOCHS), desc="      Epochs", leave=False, disable=False)
+
+    for epoch in pbar:
         solubnet.train()
         epoch_loss = 0
-        
+
         for idx in batch_idx:
             idx0, idx1 = idx[0], idx[1]
             
@@ -281,9 +279,17 @@ def train_one_fold(fold, train_data, val_data, seed, device):
             
             val_pred, val_true = get_predictions(val_graphs, val_labels, solubnet)
             val_loss = th.sqrt(criterion(val_pred, val_true))
-            
+
             scheduler.step(val_loss)
-            
+
+            # Update progress bar with metrics
+            pbar.set_postfix({
+                'train_loss': f'{epoch_loss/len(batch_idx):.4f}',
+                'val_loss': f'{val_loss.item():.4f}',
+                'best': f'{best_val_loss:.4f}',
+                'patience': f'{patience_counter}/{max_patience}'
+            })
+
             # Early stopping
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
@@ -292,9 +298,12 @@ def train_one_fold(fold, train_data, val_data, seed, device):
                 patience_counter = 0
             else:
                 patience_counter += 1
-            
+
             if patience_counter >= max_patience:
+                pbar.close()
                 break
+
+    pbar.close()
     
     fold_time = time.time() - fold_start_time
     
@@ -573,32 +582,50 @@ def save_results(all_results):
     print("\n" + "="*100)
     print("SOLUBNET 10-FOLD CV BENCHMARK SUMMARY")
     print("="*100)
-    
+    print(f"Reporting: Mean ± Std across {summary_df.iloc[0]['Seeds']} seeds")
+    print(f"Each seed: 10-fold CV ensemble prediction on test set")
+    print("="*100)
+
     for _, row in summary_df.iterrows():
         print(f"\n{row['Dataset']}:")
         print("-"*100)
         print(f"  Model: {row['Model']}")
-        print(f"\n  TEST SET PERFORMANCE (Ensemble of {row['Folds_per_seed']} folds):")
+        print(f"\n  TEST SET PERFORMANCE (Mean ± Std across {row['Seeds']} seeds, each with {row['Folds_per_seed']}-fold ensemble):")
         print(f"    MAE:  {row['Test_MAE_mean']:.4f} ± {row['Test_MAE_std']:.4f}")
         print(f"    RMSE: {row['Test_RMSE_mean']:.4f} ± {row['Test_RMSE_std']:.4f}")
         print(f"    R²:   {row['Test_R2_mean']:.4f} ± {row['Test_R2_std']:.4f}")
-        print(f"\n  FOLD VALIDATION PERFORMANCE (Mean ± Std across {row['Folds_per_seed']} folds):")
+        print(f"\n  FOLD VALIDATION PERFORMANCE (Mean across {row['Folds_per_seed']} folds within each seed):")
         print(f"    MAE:  {row['Fold_MAE_mean']:.4f} ± {row['Fold_MAE_std']:.4f}")
         print(f"    RMSE: {row['Fold_RMSE_mean']:.4f} ± {row['Fold_RMSE_std']:.4f}")
         print(f"    R²:   {row['Fold_R2_mean']:.4f} ± {row['Fold_R2_std']:.4f}")
         print(f"\n  TRAINING INFO:")
         print(f"    Seeds: {row['Seeds']}")
+        print(f"    Folds per seed: {row['Folds_per_seed']}")
         print(f"    Total models trained: {row['Total_models']}")
-        print(f"    Training time: {row['Train_time_minutes']:.1f} ± {row['Train_time_std_minutes']:.1f} minutes")
-        print(f"    Test inference time: {row['Test_time_seconds']:.2f} seconds")
-        print(f"    Total time: {row['Total_time_minutes']:.1f} minutes")
+        print(f"    Training time per seed: {row['Train_time_minutes']:.1f} ± {row['Train_time_std_minutes']:.1f} minutes")
+        print(f"    Test inference time per seed: {row['Test_time_seconds']:.2f} seconds")
+        print(f"    Total time per seed: {row['Total_time_minutes']:.1f} minutes")
     
-    # Create a comparison-ready summary
-    comparison_df = summary_df[['Dataset', 'Model', 'Test_RMSE_mean', 'Test_RMSE_std', 
-                                  'Test_R2_mean', 'Test_R2_std', 'Total_models', 'Train_time_minutes']]
+    # Create a comparison-ready summary (matches format of other baseline methods)
+    comparison_df = pd.DataFrame([{
+        'Dataset': row['Dataset'],
+        'Model': 'SolubNet',
+        'RMSE_mean': row['Test_RMSE_mean'],
+        'RMSE_std': row['Test_RMSE_std'],
+        'R2_mean': row['Test_R2_mean'],
+        'R2_std': row['Test_R2_std'],
+        'Seeds': row['Seeds'],
+        'Training_Strategy': f"{row['Folds_per_seed']}-fold CV ensemble"
+    } for _, row in summary_df.iterrows()])
+
     comparison_csv = os.path.join(OUTPUT_DIR, "solubnet_comparison_summary.csv")
     comparison_df.to_csv(comparison_csv, index=False)
     print(f"\n✓ Saved comparison summary to: {comparison_csv}")
+
+    print("\n" + "="*100)
+    print("COMPARISON FORMAT (for easy comparison with other baselines):")
+    print("="*100)
+    print(comparison_df.to_string(index=False))
     
     return summary_df
 
@@ -611,11 +638,12 @@ def main():
     print("\n" + "="*80)
     print("SOLUBNET 10-FOLD CROSS-VALIDATION BASELINE BENCHMARK")
     print("="*80)
-    print(f"Datasets: {len(DATASETS)}")
-    print(f"Seeds per dataset: {len(SEEDS)}")
+    print(f"Datasets: {len(DATASETS)} {DATASETS}")
+    print(f"Seeds per dataset: {len(SEEDS)} {SEEDS}")
     print(f"Folds per seed: {N_FOLDS}")
     print(f"Total models to train: {len(DATASETS) * len(SEEDS) * N_FOLDS} "
           f"({len(DATASETS)} datasets × {len(SEEDS)} seeds × {N_FOLDS} folds)")
+    print(f"Strategy: Train 10-fold CV on each seed, ensemble predictions, report mean ± std across {len(SEEDS)} seeds")
     print("="*80)
     
     os.makedirs(OUTPUT_DIR, exist_ok=True)

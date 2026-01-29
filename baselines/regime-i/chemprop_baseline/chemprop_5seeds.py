@@ -75,10 +75,10 @@ def train_and_evaluate(train_path, test_path, seed, checkpoint_dir):
     ]
     
     print(f"    Training with seed {seed}...")
-    result = subprocess.run(train_cmd, capture_output=True, text=True)
+    result = subprocess.run(train_cmd)  # Verbose - shows progress bars!
     
     if result.returncode != 0:
-        print(f"    ERROR in training: {result.stderr}")
+        print(f"    ERROR in training (exit code {result.returncode})")
         return None, None
     
     # Find the model file (ChemProp 2.x saves as model_0/best.pt or similar)
@@ -117,10 +117,10 @@ def train_and_evaluate(train_path, test_path, seed, checkpoint_dir):
     ]
     
     print(f"    Predicting on test set...")
-    result = subprocess.run(predict_cmd, capture_output=True, text=True)
+    result = subprocess.run(predict_cmd)  # Verbose
     
     if result.returncode != 0:
-        print(f"    ERROR in prediction: {result.stderr}")
+        print(f"    ERROR in prediction (exit code {result.returncode})")
         return None, None
     
     # Load predictions and calculate metrics

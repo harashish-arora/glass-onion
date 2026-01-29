@@ -1,124 +1,85 @@
-#!/usr/bin/env python3
-
-# This script will predict a saved model. Note -- we assume the saved model is GPU-enabled.
-# Input -- saved model file, test file. Output -- CSV with <SMILE>,<True>,<Pred>
-# Assumption number 1 -- we assume that the saved model's parameters can be parsed from the model's filename
-#                        This is the case if you use the --savemodel feature from train.py
-# Assumption number 2 -- We assume that the model you are using is for the GPU.
-
-import os
-import sys
-import pandas as pd
 import torch
 import numpy as np
+import pkg_resources, heapq
 
-#we assume that you are running the model from the main section of this github repository
-sys.path.append(os.getcwd())
-sys.path.append('src')
+from .data_utils import construct_loader_from_smiles
+from .transformer import make_model
 
-import argparse
-import time
-from transformer import make_model
-from data_utils import load_data_from_df, construct_loader
-import pickle
-import re
+#initialize model on import
+_weights=pkg_resources.resource_filename(__name__,"soltrannet_aqsol_trained.weights")
+_model=make_model()
 
-def parse_model_options(filename):
-	'''
-	This function parses out the the following from the filename:
-		dropout                    | _drop{#}_
-		lambda_distance            | _ldist{#}_
-		lanmbda_attention          | _lattn{#}_
-		number of dense layers     | _Ndense{#}_
-		heads                      | _heads{#}_
-		dimension of model         | _dmodel{#}_
-		number of stacked layers   | _nsl{#}_
+if torch.cuda.is_available():
+    _device=torch.device("cuda")
+    _model.load_state_dict(torch.load(_weights))    
+    _model.to(_device)
+else:
+    _device=torch.device('cpu')
+    _model.load_state_dict(torch.load(_weights,map_location=_device))
 
-	--ASSUMPTIONS--
-		Assumes that the file's name has the convention specified above!
+    
+def predict(smi, batch_size=32, num_workers=1,device=_device):
+    """Predict Solubilities for a list of SMILES.
+    Args:
+        smi ([str]): A list of SMILES strings, upon which we wish to predict the solubilities for.
+        batch_size: sizes of batches to use
+        num_workers: number of parallel workers to use 
+        device: torch device to use
+    Returns:
+        A list of tuples [(prediction, SMILES, Warning)].
+    """
+    #generate the molecular graphs from the SMILES strings
+    data_loader = construct_loader_from_smiles(smi, batch_size=batch_size, num_workers=num_workers)
+    
+    #Then we ensure the model is set up properly
+    _model.to(device)
+    _model.eval()
 
-	--Returns--
-		the same order
-	'''
+    #Now we can generate our predictions.
+    #Molecules are processed out of order due to parallelism, so use heap
+    #to yield molecules back in order
+    H = []
+    index = 0
+    with torch.no_grad():
+        for batch in data_loader:
+            adjacency_matrix, node_features, smiles, indices = batch
+            adjacency_matrix = adjacency_matrix.to(device)
+            node_features = node_features.to(device)
+            
+            batch_mask = torch.sum(torch.abs(node_features),dim=-1) != 0
+            pred = _model(node_features, batch_mask, adjacency_matrix, None)
+            for pred,node_feature,smi,i in zip(pred.flatten().tolist(), node_features, smiles, indices):
+                heapq.heappush(H,(i,(pred, smi, check_smile(smi, node_feature))))
+                while H and H[0][0] == index:
+                    index += 1
+                    yield heapq.heappop(H)[1]
+                    
+    while H:
+        yield heapq.heappop(H)[1]
 
-	drop=float(re.search(r'drop(\d+\.?\d*)',filename).group(1))
-	ldist=float(re.search(r'ldist(\d+\.?\d*)',filename).group(1))
-	lattn=float(re.search(r'lattn(\d+\.?\d*)',filename).group(1))
-	nDense=int(re.search(r'Ndense(\d+\.?\d*)',filename).group(1))
-	heads=int(re.search(r'heads(\d+\.?\d*)',filename).group(1))
-	dmodel=int(re.search(r'dmodel(\d+\.?\d*)',filename).group(1))
-	nsl=int(re.search(r'nsl(\d+\.?\d*)',filename).group(1))
 
-	return drop,ldist,lattn,nDense,heads,dmodel,nsl
+def check_smile(smi, node_features):
+    """Check the smile to see if the predictions will be less reliable. E.G. are a salt or have Other typed atoms
 
-parser=argparse.ArgumentParser(description='Predict MAT model on a given test set')
-parser.add_argument('-m','--model',type=str,required=True,help='Trained torch model file')
-parser.add_argument('-i','--input',type=str,required=True,help='File to evaluate. Assumed format is "<SMILE>,<solubility>"')
-parser.add_argument('-o','--output',type=str,required=True,help='File for Predictions. Format is "<SMILE>,<True>,<Predicted>"')
-parser.add_argument('--stats',default=False,action='store_true',help='Flag to print the R2, RMSE, and the time to perform the evaluation.')
-parser.add_argument('--twod',default=False,action='store_true',help='Flag to use 2D conformers for distance matrix.')
-args=parser.parse_args()
+    Args:
+        smile (str): A Smile string
+        features [(node features, adjacency matrix)]: A list of the graph represenation for the corresponding SMILES string.
 
-if args.stats:
-	start=time.time()
+    Returns:
+        A string with any warnings
 
-#loading the data
-X,gold=load_data_from_df(args.input,one_hot_formal_charge=True,use_data_saving=True,two_d_only=args.twod)
-data_loader=construct_loader(X,gold,batch_size=8,shuffle=False)
+    """
+    warn=""
 
-if args.stats:
-	print('Loading data time:',time.time()-start)
-	start=time.time()
+    #start with a check for salts
+    if '.' in smi.split()[0]:
+        warn+='Salt '
 
-#constructing the model
-drop,ldist,lattn,nDense,heads,dmodel,nsl=parse_model_options(args.model)
+    #use the calculated molecular features to determine if an "Other" typed atom exists in the molecule.
+    if node_features[:,11].sum():
+        warn+='Other-typed Atom(s) '
 
-d_atom=X[0][0].shape[1]
-model_params={
-	'd_atom': d_atom,
-    'd_model': dmodel,
-    'N': nsl,
-    'h': heads,
-    'N_dense': nDense,
-    'lambda_attention': lattn, 
-    'lambda_distance': ldist,
-    'leaky_relu_slope': 0.1, 
-    'dense_output_nonlinearity': 'relu', 
-    'distance_matrix_kernel': 'exp', 
-    'dropout': drop,
-    'aggregation_type': 'mean'
-}
+    if warn!='':
+        warn+='Detected Prediction less reliable'
 
-model=make_model(**model_params)
-model.load_state_dict(torch.load(args.model))
-model.cuda()
-model.eval()
-
-if args.stats:
-	print('Model construction time:',time.time()-start)
-	start=time.time()
-
-##getting the predictions
-preds=np.array([])
-ys=np.array([])
-for batch in data_loader:
-	adjacency_matrix, node_features,distance_matrix,y=batch
-	batch_mask=torch.sum(torch.abs(node_features),dim=-1) != 0
-	pred=model(node_features,batch_mask,adjacency_matrix,distance_matrix,None)
-	preds=np.append(preds,pred.tolist())
-	ys=np.append(ys,y.tolist())
-
-if args.stats:
-	print('Model Prediction time:',time.time()-start)
-	print('RMSE:',np.sqrt(np.mean((preds-ys)**2)))
-	print('R2:',np.corrcoef(preds,ys)[0][1]**2)
-
-with open(args.output,'w') as outfile:
-	outfile.write('smile,true,pred\n')
-	lines=open(args.input).readlines()
-	lines=lines[1:]
-	preds=preds.tolist()
-	assert len(lines)==len(preds)
-
-	for l,p in zip(lines,preds):
-		outfile.write(l.rstrip()+','+str(p)+'\n')
+    return warn

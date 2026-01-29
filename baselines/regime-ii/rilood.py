@@ -1,13 +1,14 @@
 # rilood.py
 
 import os
+import time
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.data import Data, Batch
 from torch_geometric.nn import MessagePassing, global_mean_pool, Set2Set
 from torch.utils.data import DataLoader
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error, r2_score
 from rdkit import Chem
 from rdkit.Chem import Lipinski
 import numpy as np
@@ -591,7 +592,7 @@ def collate_fn(batch):
 # ============================================================================
 
 def train_one_seed(seed, train_df, test_df, solvent_map, num_epochs=30, patience=10):
-    """Train for one seed, return best test RMSE. Uses 5% val split for early stopping."""
+    """Train for one seed, return best test RMSE and R2. Uses 5% val split for early stopping."""
     # Set seeds
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -606,11 +607,11 @@ def train_one_seed(seed, train_df, test_df, solvent_map, num_epochs=30, patience
     val_ds = SolubilityDataset(val_df, solvent_map)
     test_ds = SolubilityDataset(test_df, solvent_map)
     
-    train_loader = DataLoader(train_ds, batch_size=64, shuffle=True, collate_fn=collate_fn,
+    train_loader = DataLoader(train_ds, batch_size=256, shuffle=True, collate_fn=collate_fn,
                               num_workers=4, persistent_workers=True)
-    val_loader = DataLoader(val_ds, batch_size=64, shuffle=False, collate_fn=collate_fn,
+    val_loader = DataLoader(val_ds, batch_size=256, shuffle=False, collate_fn=collate_fn,
                             num_workers=4, persistent_workers=True)
-    test_loader = DataLoader(test_ds, batch_size=64, shuffle=False, collate_fn=collate_fn,
+    test_loader = DataLoader(test_ds, batch_size=256, shuffle=False, collate_fn=collate_fn,
                              num_workers=4, persistent_workers=True)
     
     model = RILOOD(num_solvents=len(solvent_map)).to(DEVICE)
@@ -625,6 +626,7 @@ def train_one_seed(seed, train_df, test_df, solvent_map, num_epochs=30, patience
     
     best_val_rmse = float('inf')
     best_test_rmse = float('inf')
+    best_test_r2 = float('-inf')
     best_state = None
     epochs_no_improve = 0
     
@@ -673,11 +675,13 @@ def train_one_seed(seed, train_df, test_df, solvent_map, num_epochs=30, patience
                 test_targets.extend(b['target'].numpy())
         
         test_rmse = np.sqrt(mean_squared_error(test_targets, test_preds))
+        test_r2 = r2_score(test_targets, test_preds)
         
         # Early stopping based on validation RMSE
         if val_rmse < best_val_rmse:
             best_val_rmse = val_rmse
             best_test_rmse = test_rmse
+            best_test_r2 = test_r2
             best_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
             epochs_no_improve = 0
         else:
@@ -686,13 +690,13 @@ def train_one_seed(seed, train_df, test_df, solvent_map, num_epochs=30, patience
         # ReduceLROnPlateau scheduler step (uses validation metric)
         scheduler.step(val_rmse)
         
-        print(f"Seed {seed} | Epoch {epoch+1} | Loss: {total_loss:.4f} | Val: {val_rmse:.4f} | Test: {test_rmse:.4f} | Best Test: {best_test_rmse:.4f}")
+        print(f"Seed {seed} | Epoch {epoch+1} | Loss: {total_loss:.4f} | Val: {val_rmse:.4f} | Test: {test_rmse:.4f} (R2: {test_r2:.4f}) | Best: {best_test_rmse:.4f}")
         
         if epochs_no_improve >= patience:
             print(f"Early stopping at epoch {epoch+1} (patience={patience})")
             break
 
-    return best_test_rmse
+    return best_test_rmse, best_test_r2
 
 
 def main():
@@ -716,26 +720,41 @@ def main():
     
     # Run 5 seeds
     seeds = [42, 101, 123, 456, 789]
-    results = []
+    rmse_results = []
+    r2_results = []
+    times = []
     
     for seed in seeds:
         print(f"\n{'='*60}")
         print(f"STARTING SEED {seed}")
         print(f"{'='*60}")
-        best_rmse = train_one_seed(seed, train_df, test_df, solvent_map, num_epochs=30)
-        results.append(best_rmse)
-        print(f"\n✓ Seed {seed} complete! Best RMSE: {best_rmse:.4f}")
+        start_time = time.time()
+        best_rmse, best_r2 = train_one_seed(seed, train_df, test_df, solvent_map, num_epochs=30)
+        elapsed = time.time() - start_time
+        rmse_results.append(best_rmse)
+        r2_results.append(best_r2)
+        times.append(elapsed)
+        print(f"\n✓ Seed {seed} complete! Best RMSE: {best_rmse:.4f} | R2: {best_r2:.4f} | Time: {elapsed:.1f}s ({elapsed/60:.1f} min)")
     
     # Final report
-    mean_rmse = np.mean(results)
-    std_rmse = np.std(results)
+    mean_rmse = np.mean(rmse_results)
+    std_rmse = np.std(rmse_results)
+    mean_r2 = np.mean(r2_results)
+    std_r2 = np.std(r2_results)
+    mean_time = np.mean(times)
+    total_time = np.sum(times)
     
     print("\n" + "="*60)
     print("FINAL RESULTS")
     print("="*60)
     print(f"Seeds: {seeds}")
-    print(f"RMSEs: {[f'{r:.4f}' for r in results]}")
+    print(f"RMSEs: {[f'{r:.4f}' for r in rmse_results]}")
+    print(f"R2s:   {[f'{r:.4f}' for r in r2_results]}")
+    print(f"Times: {[f'{t:.1f}s' for t in times]}")
     print(f"\n>>> RMSE: {mean_rmse:.4f} ± {std_rmse:.4f} <<<")
+    print(f">>> R2:   {mean_r2:.4f} ± {std_r2:.4f} <<<")
+    print(f">>> Avg time per run: {mean_time:.1f}s ({mean_time/60:.1f} min) <<<")
+    print(f">>> Total time: {total_time:.1f}s ({total_time/60:.1f} min) <<<")
     print("="*60)
 
 if __name__ == "__main__":

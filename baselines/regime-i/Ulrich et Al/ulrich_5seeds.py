@@ -25,16 +25,33 @@ warnings.filterwarnings("ignore")
 import tensorflow as tf
 tf.get_logger().setLevel("ERROR")
 
+# Configure TensorFlow for GPU usage
+gpus = tf.config.list_physical_devices('GPU')
+if gpus:
+    try:
+        # Enable memory growth to prevent TF from allocating all GPU memory
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        # Enable mixed precision for 2x faster training
+        tf.keras.mixed_precision.set_global_policy('mixed_float16')
+        # Enable XLA (Accelerated Linear Algebra) for additional speedup
+        tf.config.optimizer.set_jit(True)
+        print(f"GPU(s) configured: {len(gpus)} device(s)")
+        print(f"Mixed precision enabled (float16)")
+        print(f"XLA compilation enabled")
+    except RuntimeError as e:
+        print(f"GPU configuration error: {e}")
+
 # ================= IMPORTS =================
 import numpy as np
 import deepchem as dc
 from deepchem.feat.mol_graphs import ConvMol
-from deepchem.models import GraphConvModel
 from sklearn.metrics import mean_squared_error, r2_score
 import pandas as pd
 import random
 import time
 from tqdm import tqdm
+from mygraphconvmodel import MyGraphConvModel
 
 from rdkit import Chem
 from rdkit.Chem.MolStandardize import rdMolStandardize
@@ -44,7 +61,7 @@ OUTER_SEEDS = [42, 101, 123, 456, 789]
 N_INNER_MODELS = 5  # 5 models per outer seed (consensus ensemble)
 PRIMES = [2, 3, 5, 7, 11]  # For generating inner seeds
 
-BATCH_SIZE = 50
+BATCH_SIZE = 1024  # Large batch to reduce CPU preprocessing overhead
 NUM_EPOCHS = 130
 NEURONS_LAYER1 = 64
 NEURONS_LAYER2 = 128
@@ -177,14 +194,35 @@ def data_generator(dataset, batch_size, epochs=1):
 
 def evaluate_model(model, dataset, batch_size):
     """Evaluate model and return RMSE, R2, predictions"""
-    # Use model.predict() directly - it handles ConvMol conversion properly
-    pred = model.predict(dataset)
-    pred = pred.flatten()[:len(dataset.y)]
+    predictions = []
+    device = '/GPU:0' if len(tf.config.list_physical_devices('GPU')) > 0 else '/CPU:0'
+
+    for X_b, y_b, w_b, ids_b in dataset.iterbatches(
+        batch_size=batch_size,
+        deterministic=True,
+        pad_batches=True
+    ):
+        multiConvMol = ConvMol.agglomerate_mols(X_b)
+
+        with tf.device(device):
+            # Convert inputs to tensors and move to GPU
+            inputs = [
+                tf.convert_to_tensor(multiConvMol.get_atom_features(), dtype=tf.float32),
+                tf.convert_to_tensor(multiConvMol.deg_slice, dtype=tf.int32),
+                tf.convert_to_tensor(np.array(multiConvMol.membership), dtype=tf.int32)
+            ]
+            for i in range(1, len(multiConvMol.get_deg_adjacency_lists())):
+                inputs.append(tf.convert_to_tensor(multiConvMol.get_deg_adjacency_lists()[i], dtype=tf.int32))
+
+            pred_batch = model(inputs, training=False)
+            predictions.append(pred_batch.numpy())
+
+    pred = np.concatenate(predictions, axis=0).flatten()[:len(dataset.y)]
     true = dataset.y.flatten()
-    
+
     rmse = np.sqrt(mean_squared_error(true, pred))
     r2 = r2_score(true, pred)
-    
+
     return rmse, r2, pred
 
 
@@ -199,33 +237,72 @@ def set_all_seeds(seed):
 def train_inner_model(inner_seed, train_dataset, val_dataset, featurizer, outer_seed, inner_idx):
     """Train one inner model with given seed"""
     set_all_seeds(inner_seed)
-    
+
     # Convert to df, augment, convert back
     train_df = dataset_to_df(train_dataset)
     aug_train_df = augment_training_data(train_df, max_tautomers=50)
     aug_train_dataset = df_to_dataset(aug_train_df, featurizer, tag=f"o{outer_seed}_i{inner_idx}")
-    
-    # Create model using GraphConvModel
-    # Note: BatchNorm not available in standard GraphConvModel, but graph_conv_activation can be set
-    import tensorflow as tf
-    model = GraphConvModel(
-        n_tasks=1,
-        mode='regression',
-        graph_conv_layers=[NEURONS_LAYER1, NEURONS_LAYER2],
-        dense_layer_size=256,
-        dropout=DROPOUT,
-        batch_size=BATCH_SIZE,
-        learning_rate=LEARNING_RATE,
-        model_dir=f"./_tmp_models/o{outer_seed}_i{inner_idx}"
-    )
-    
+
+    # Determine device
+    device = '/GPU:0' if len(tf.config.list_physical_devices('GPU')) > 0 else '/CPU:0'
+
+    with tf.device(device):
+        # Create custom MyGraphConvModel
+        model = MyGraphConvModel(
+            batch_size=BATCH_SIZE,
+            neuronslayer1=NEURONS_LAYER1,
+            neuronslayer2=NEURONS_LAYER2,
+            dropout=DROPOUT
+        )
+
+        # Compile model with optimizer and loss
+        optimizer = tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE)
+        model.compile(
+            optimizer=optimizer,
+            loss='mse',
+            metrics=['mae']
+        )
+
+    # Compiled training step for faster execution
+    @tf.function(jit_compile=True)  # XLA compilation
+    def train_step(inputs_list, y_batch):
+        with tf.GradientTape() as tape:
+            predictions = model(inputs_list, training=True)
+            loss = tf.reduce_mean(tf.square(predictions - y_batch))
+        gradients = tape.gradient(loss, model.trainable_variables)
+        optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+        return loss
+
     # Train with validation monitoring
     best_val_rmse = float('inf')
     pbar = tqdm(range(NUM_EPOCHS), desc=f"      Training", leave=False)
+
     for epoch in pbar:
-        # Use model.fit() with nb_epoch=1 instead of fit_generator
-        model.fit(aug_train_dataset, nb_epoch=1)
-        
+        # Training loop
+        epoch_losses = []
+        for X_b, y_b, w_b, ids_b in aug_train_dataset.iterbatches(
+            batch_size=BATCH_SIZE,
+            deterministic=False,
+            pad_batches=True
+        ):
+            multiConvMol = ConvMol.agglomerate_mols(X_b)
+
+            with tf.device(device):
+                # Convert inputs to tensors and move to GPU
+                inputs = [
+                    tf.convert_to_tensor(multiConvMol.get_atom_features(), dtype=tf.float32),
+                    tf.convert_to_tensor(multiConvMol.deg_slice, dtype=tf.int32),
+                    tf.convert_to_tensor(np.array(multiConvMol.membership), dtype=tf.int32)
+                ]
+                for i in range(1, len(multiConvMol.get_deg_adjacency_lists())):
+                    inputs.append(tf.convert_to_tensor(multiConvMol.get_deg_adjacency_lists()[i], dtype=tf.int32))
+
+                y_b_tensor = tf.convert_to_tensor(y_b, dtype=tf.float32)
+
+                # Use compiled training step
+                loss = train_step(inputs, y_b_tensor)
+                epoch_losses.append(loss.numpy())
+
         # Monitor validation every 20 epochs
         if (epoch + 1) % 20 == 0:
             train_rmse, _, _ = evaluate_model(model, aug_train_dataset, BATCH_SIZE)
@@ -233,7 +310,7 @@ def train_inner_model(inner_seed, train_dataset, val_dataset, featurizer, outer_
             if val_rmse < best_val_rmse:
                 best_val_rmse = val_rmse
             pbar.set_postfix({'train': f'{train_rmse:.3f}', 'val': f'{val_rmse:.3f}'})
-    
+
     return model
 
 
@@ -264,12 +341,10 @@ def train_one_outer_seed(outer_seed, full_train_dataset, test_dataset, featurize
         # Get test predictions
         _, _, test_pred = evaluate_model(model, test_dataset, BATCH_SIZE)
         test_predictions_list.append(test_pred)
-        
-        # Cleanup
-        import shutil
-        model_dir = f"./_tmp_models/o{outer_seed}_i{i}"
-        if os.path.exists(model_dir):
-            shutil.rmtree(model_dir)
+
+        # Cleanup model from memory
+        del model
+        tf.keras.backend.clear_session()
     
     # Consensus: average predictions from 5 models
     consensus_pred = np.mean(test_predictions_list, axis=0)
@@ -361,12 +436,18 @@ def main():
     print("Ulrich et al. (2024) - 5 Seed Consensus Evaluation")
     print("5 outer seeds × 5 inner models = 25 models per dataset")
     print("=" * 60)
-    
+
+    # Check GPU availability with detailed info
     gpus = tf.config.list_physical_devices('GPU')
     if gpus:
-        print(f"GPU available: {gpus[0].name}")
+        print(f"\n✓ GPU AVAILABLE: {len(gpus)} device(s)")
+        for gpu in gpus:
+            print(f"  - {gpu.name}")
+        print(f"  TensorFlow built with CUDA: {tf.test.is_built_with_cuda()}")
+        print(f"  TensorFlow GPU support: {tf.test.is_gpu_available()}")
     else:
-        print("Running on CPU")
+        print("\n✗ NO GPU DETECTED - Running on CPU")
+        print("  This will be very slow. Check your CUDA installation.")
     
     all_results = []
     
