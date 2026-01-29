@@ -1,6 +1,6 @@
 # ablations.py
-# Comprehensive ablation study for Glass Onion regime-II model
-# Run with: conda activate molmerger && python ablations.py
+# Comprehensive ablation study for regime-II model
+# Run with: python ablations.py
 
 import os
 import warnings
@@ -355,7 +355,7 @@ def train_and_evaluate(X_train_full, X_test_full, y_train, y_test, kept_indices,
 def run_ablation_study():
     """Run comprehensive ablation study."""
     print("="*60)
-    print("GLASS ONION ABLATION STUDY")
+    print("ABLATION STUDY")
     print("="*60)
     
     # Load data

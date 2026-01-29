@@ -1,14 +1,12 @@
 """
-Threshold Recommendation Tool for Glass-Onion Solubility Model
-================================================================
+Threshold Recommendation Tool for Solubility Model
+===================================================
 
 Analyzes prediction error distribution to recommend optimal thresholds for:
 - Good predictions (accurate): error < good_threshold
 - Bad predictions (inaccurate): error > bad_threshold
 
 This tool helps you determine the best thresholds to use in enhanced_explain_pipeline.py
-
-Author: Threshold analysis for enhanced_explain_pipeline.py
 """
 
 import os

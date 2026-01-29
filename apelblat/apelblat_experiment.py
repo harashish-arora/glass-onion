@@ -3,7 +3,7 @@
 Apelblat Equation Comparison Experiment (Enhanced)
 ===================================================
 
-This experiment evaluates how well the Glass-Onion model's predictions follow
+This experiment evaluates how well the model's predictions follow
 the Apelblat equation for temperature-dependent solubility:
 
     ln(x) = A + B/T + C*ln(T)
@@ -14,7 +14,6 @@ Features:
 - R² comparison: Known temps vs Unknown temps
 - Enhanced Metrics: MAPE, Slope/Sensitivity analysis, Parameter Correlation
 
-Author: Glass-Onion Team
 """
 
 import os
@@ -120,7 +119,7 @@ def fit_apelblat(temps: np.ndarray, logs: np.ndarray) -> Tuple[np.ndarray, float
 # ============================================================================
 
 class ModelPredictor:
-    """Wrapper for the Glass-Onion model to generate predictions."""
+    """Wrapper for the solubility model to generate predictions."""
     
     def __init__(self, config: ExperimentConfig):
         self.config = config

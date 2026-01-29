@@ -177,8 +177,8 @@ def time_generic_baselines():
     log_result("ANN", train_time, time.time() - start)
 
 
-def time_glassonion():
-    """Train GlassOnion: CatBoost with custom features."""
+def time_ours():
+    """Train Ours: CatBoost with custom features."""
     from catboost import CatBoostRegressor
     
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -211,7 +211,7 @@ def time_glassonion():
     _ = model.predict(X_test)
     inf_time = time.time() - start
     
-    log_result("GlassOnion", train_time, inf_time, "CatBoost 10000 iters")
+    log_result("Ours", train_time, inf_time, "CatBoost 10000 iters")
 
 
 def time_tayyebi():
@@ -301,8 +301,8 @@ def main():
     print("\n[4/6] Tayyebi...")
     time_tayyebi()
     
-    print("\n[5/6] GlassOnion...")
-    time_glassonion()
+    print("\n[5/6] Ours...")
+    time_ours()
     
     # Print results
     print("\n" + "=" * 90)

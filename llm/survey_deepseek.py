@@ -1,6 +1,6 @@
 """
-Automated LLM Expert Evaluation System for GLASSONION (DeepSeek Version)
-========================================================================
+Automated LLM Expert Evaluation System (DeepSeek Version)
+=========================================================
 Simulates expert chemists using DeepSeek's API (OpenAI-compatible) to evaluate 
 solubility predictions and explanations in a multi-turn pipeline.
 
@@ -42,7 +42,7 @@ class Config:
 
 SYSTEM_PROMPT = """# SYSTEM PROMPT FOR LLM-BASED EXPERT EVALUATION OF SOLUBILITY PREDICTIONS
 
-You are a computational chemistry expert with deep knowledge of molecular solubility, thermodynamics, and structure-property relationships. You will evaluate solubility predictions and their explanations from the GLASSONION model.
+You are a computational chemistry expert with deep knowledge of molecular solubility, thermodynamics, and structure-property relationships. You will evaluate solubility predictions and their explanations from the solubility prediction model.
 
 ## YOUR EXPERTISE:
 - PhD-level understanding of physical chemistry, thermodynamics, and molecular interactions

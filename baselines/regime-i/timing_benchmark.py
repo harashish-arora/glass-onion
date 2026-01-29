@@ -22,7 +22,7 @@ Methods included:
 - Tayyebi et al.
 - Decision Tree, Random Forest, XGBoost, LightGBM, ANN
 - GIN, GCN, GAT, MPNN (PyTorch Geometric)
-- GlassOnion (your method)
+- Ours (proposed method)
 """
 
 import os
@@ -605,11 +605,11 @@ def time_ulrich():
 
 
 # ============================================================================
-# 10. GlassOnion (CatBoost)
+# 10. Ours (CatBoost)
 # ============================================================================
 
-def time_glassonion():
-    """Train GlassOnion: CatBoost with custom features."""
+def time_ours():
+    """Train Ours: CatBoost with custom features."""
     from catboost import CatBoostRegressor
     
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -642,7 +642,7 @@ def time_glassonion():
     _ = model.predict(X_test)
     inf_time = time.time() - start
     
-    log_result("GlassOnion", train_time, inf_time, "cpu", "CatBoost, 10000 iterations")
+    log_result("Ours", train_time, inf_time, "cpu", "CatBoost, 10000 iterations")
 
 
 # ============================================================================
@@ -968,8 +968,8 @@ def main():
     print("\n[9/14] Ulrich (GCN)...")
     time_ulrich()
     
-    print("\n[10/14] GlassOnion...")
-    time_glassonion()
+    print("\n[10/14] Ours...")
+    time_ours()
     
     print("\n[11/14] SolubNet...")
     time_solubnet()

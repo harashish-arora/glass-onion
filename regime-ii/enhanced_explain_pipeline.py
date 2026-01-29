@@ -1,6 +1,6 @@
 """
-Enhanced LLM Explanation Pipeline for Glass-Onion Solubility Model
-====================================================================
+Enhanced LLM Explanation Pipeline for Solubility Model
+=======================================================
 
 This pipeline generates model-grounded explanations by:
 1. Selecting 15 accurate and 15 inaccurate predictions
@@ -8,7 +8,7 @@ This pipeline generates model-grounded explanations by:
 3. Compiling evidence from SHAP, decision paths, attention weights, structural features
 4. Using multi-step LLM reasoning to produce grounded explanations
 
-Author: Enhanced from explain_glass_onion.py
+Enhanced explanation pipeline for solubility predictions.
 """
 
 import os

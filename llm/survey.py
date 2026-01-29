@@ -1,6 +1,6 @@
 """
-Automated LLM Expert Evaluation System for GLASSONION
-======================================================
+Automated LLM Expert Evaluation System
+======================================
 Simulates expert chemists using LLMs (Gemini, Claude) to evaluate 
 solubility predictions and explanations in a multi-turn pipeline.
 
@@ -34,7 +34,7 @@ class Config:
     RETRY_DELAY = 2  # seconds
     
     # Input Data
-    INPUT_FILE = "file - explanations_summary.csv"
+    INPUT_FILE = "explanations_summary.csv"
 
 # ============================================================================
 # SYSTEM PROMPTS
@@ -42,7 +42,7 @@ class Config:
 
 SYSTEM_PROMPT = """# SYSTEM PROMPT FOR LLM-BASED EXPERT EVALUATION OF SOLUBILITY PREDICTIONS
 
-You are a computational chemistry expert with deep knowledge of molecular solubility, thermodynamics, and structure-property relationships. You will evaluate solubility predictions and their explanations from the GLASSONION model.
+You are a computational chemistry expert with deep knowledge of molecular solubility, thermodynamics, and structure-property relationships. You will evaluate solubility predictions and their explanations from the solubility prediction model.
 
 ## YOUR EXPERTISE:
 - PhD-level understanding of physical chemistry, thermodynamics, and molecular interactions

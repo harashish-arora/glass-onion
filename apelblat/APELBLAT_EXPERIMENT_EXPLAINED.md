@@ -1,6 +1,6 @@
 # Apelblat Equation Comparison Experiment
 
-This document explains the full experimental pipeline used to evaluate whether the Glass-Onion solubility model's predictions follow the **Apelblat equation**, a well-known thermodynamic model for temperature-dependent solubility.
+This document explains the full experimental pipeline used to evaluate whether the solubility model's predictions follow the **Apelblat equation**, a well-known thermodynamic model for temperature-dependent solubility.
 
 ---
 
@@ -56,7 +56,7 @@ The experiment uses **two main approaches** to test predictions at temperatures 
 This is the gold standard test. For pairs with ≥7 temperature points:
 1.  **Split**: Hold out 2 *interpolation* points (from the middle) and 2 *extrapolation* points (min/max temperatures).
 2.  **Fit**: Fit the Apelblat equation using only the *remaining* training temperatures.
-3.  **Predict**: Use the Glass-Onion model to predict LogS at the held-out temperatures.
+3.  **Predict**: Use the model to predict LogS at the held-out temperatures.
 4.  **Compare**: Measure how well predictions match both:
     - The **Experimental** values at the held-out points.
     - The **Apelblat Curve** fit on the training points (physical expectation).
