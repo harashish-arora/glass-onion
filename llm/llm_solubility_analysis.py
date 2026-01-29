@@ -52,7 +52,7 @@ def prepare_data(df):
 
     for idx, row in df.iterrows():
         mixture_id = row['Mixture ID']
-        quality = row['Mixture Quality']  # Prediction quality indicator
+        # Process each mixture
 
         for llm_idx, llm in enumerate(llms):
             # Extract Q1, Q2, Q3, Q4 for this LLM
@@ -65,7 +65,6 @@ def prepare_data(df):
                 'llm_id': llm_idx + 1,
                 'llm_name': llm,
                 'mixture': mixture_id + 1,  # 0-indexed to 1-indexed
-                'prediction_quality': 'A' if quality == 'Good' else 'I',
                 'Q1': q1_pred,
                 'Q2': q2_rating,
                 'Q3': q3_rating,
@@ -210,31 +209,6 @@ def inter_rater_reliability(df_long):
         print(f"  Fleiss' κ = {kappa:.3f}")
         print(f"  Interpretation: {interp}")
 
-    # Stratified by prediction quality
-    print("\n--- STRATIFIED BY PREDICTION QUALITY ---")
-
-    for pred_quality in ['A', 'I']:
-        quality_label = "Accurate Predictions" if pred_quality == 'A' else "Inaccurate Predictions"
-        df_subset = df_long[df_long['prediction_quality'] == pred_quality]
-
-        print(f"\n{quality_label} (N = {len(df_subset)}):")
-
-        for question in ['Q2', 'Q3', 'Q4']:
-            kappa, _ = calculate_fleiss_kappa(df_subset, question)
-
-            if kappa < 0.20:
-                interp = "Slight agreement"
-            elif kappa < 0.40:
-                interp = "Fair agreement"
-            elif kappa < 0.60:
-                interp = "Moderate agreement"
-            elif kappa < 0.80:
-                interp = "Substantial agreement"
-            else:
-                interp = "Almost perfect agreement"
-
-            print(f"  {question}: κ = {kappa:.3f} ({interp})")
-
     return
 
 # ============================================================================
@@ -332,81 +306,7 @@ def plot_opinion_change(df_long):
     return fig
 
 # ============================================================================
-# PART 5: STRATIFIED PREDICTIONS ANALYSIS
-# ============================================================================
-
-def stratified_analysis(df_long):
-    """
-    Compare responses for accurate vs inaccurate predictions
-    """
-    print("\n" + "="*80)
-    print("STRATIFIED ANALYSIS: Accurate vs Inaccurate Predictions")
-    print("="*80)
-
-    accurate_df = df_long[df_long['prediction_quality'] == 'A']
-    inaccurate_df = df_long[df_long['prediction_quality'] == 'I']
-
-    print(f"\nSample sizes:")
-    print(f"  Accurate predictions: N = {len(accurate_df)}")
-    print(f"  Inaccurate predictions:  N = {len(inaccurate_df)}")
-
-    for metric in ['Q2', 'Q3', 'Q4', 'Q4_minus_Q2']:
-        accurate_data = accurate_df[metric].values
-        inaccurate_data = inaccurate_df[metric].values
-
-        statistic, p_value = mannwhitneyu(accurate_data, inaccurate_data, alternative='two-sided')
-
-        print(f"\n{metric}:")
-        print(f"  Accurate predictions: {np.mean(accurate_data):.2f} ± {np.std(accurate_data):.2f}")
-        print(f"  Inaccurate predictions:  {np.mean(inaccurate_data):.2f} ± {np.std(inaccurate_data):.2f}")
-        print(f"  Mann-Whitney U = {statistic:.1f}, p = {p_value:.6f} {'***' if p_value < 0.001 else '**' if p_value < 0.01 else '*' if p_value < 0.05 else 'ns'}")
-
-    return
-
-def plot_stratified_comparison(df_long):
-    """
-    Visualize accurate vs inaccurate predictions
-    """
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-
-    metrics = ['Q2', 'Q3', 'Q4', 'Q4_minus_Q2']
-    titles = ['Initial Agreement', 'Explanation Quality', 'Post-Explanation Agreement', 'Opinion Change']
-
-    for idx, (metric, title) in enumerate(zip(metrics, titles)):
-        ax = axes[idx // 2, idx % 2]
-
-        accurate_data = df_long[df_long['prediction_quality'] == 'A'][metric]
-        inaccurate_data = df_long[df_long['prediction_quality'] == 'I'][metric]
-
-        positions = [1, 2]
-        data_to_plot = [accurate_data, inaccurate_data]
-
-        bp = ax.boxplot(data_to_plot, positions=positions, widths=0.6,
-                        patch_artist=True, showmeans=True)
-
-        colors = ['#2ca02c', '#d62728']
-        for patch, color in zip(bp['boxes'], colors):
-            patch.set_facecolor(color)
-            patch.set_alpha(0.6)
-
-        ax.set_xticklabels(['Accurate\nPredictions', 'Inaccurate\nPredictions'])
-        ax.set_ylabel('Rating', fontsize=11)
-        ax.set_title(title, fontsize=12, fontweight='bold')
-        ax.grid(axis='y', alpha=0.3)
-
-        _, p_value = mannwhitneyu(accurate_data, inaccurate_data, alternative='two-sided')
-        sig_text = '***' if p_value < 0.001 else '**' if p_value < 0.01 else '*' if p_value < 0.05 else 'ns'
-        ax.text(1.5, ax.get_ylim()[1] * 0.95, f'p {sig_text}',
-                ha='center', fontsize=10, fontweight='bold')
-
-    plt.tight_layout()
-    plt.savefig('llm_stratified_predictions.png', dpi=300, bbox_inches='tight')
-    print("\n✓ Saved: llm_stratified_predictions.png")
-
-    return fig
-
-# ============================================================================
-# PART 6: LLM-LEVEL ANALYSIS
+# PART 5: LLM-LEVEL ANALYSIS
 # ============================================================================
 
 def llm_level_analysis(df_long):
@@ -449,23 +349,6 @@ def llm_level_analysis(df_long):
         print(f"  χ²-statistic: {chi_stat:.2f}")
         print(f"  p-value: {p_value:.4f} {'***' if p_value < 0.001 else '**' if p_value < 0.01 else '*' if p_value < 0.05 else 'ns'}")
         print(f"  Interpretation: {'Significant differences' if p_value < 0.05 else 'No significant differences'} in opinion change across LLMs")
-
-    # Stratified by prediction quality
-    print("\n--- LLM PROFILES BY PREDICTION QUALITY ---")
-
-    for pred_quality in ['A', 'I']:
-        quality_label = "Accurate Predictions" if pred_quality == 'A' else "Inaccurate Predictions"
-        df_subset = df_long[df_long['prediction_quality'] == pred_quality]
-
-        llm_summary_subset = df_subset.groupby('llm_name').agg({
-            'Q2': 'mean',
-            'Q3': 'mean',
-            'Q4': 'mean',
-            'Q4_minus_Q2': 'mean'
-        }).round(2)
-
-        print(f"\n{quality_label}:")
-        print(llm_summary_subset.to_string())
 
     return llm_summary
 
@@ -521,11 +404,8 @@ def plot_confirmation_bias(df_long):
 
     # Panel 1: Q1 vs Q2 scatter
     ax1 = axes[0, 0]
-    accurate_mask = df_long['prediction_quality'] == 'A'
-    ax1.scatter(df_long[accurate_mask]['Q1'], df_long[accurate_mask]['Q2'],
-                alpha=0.5, s=50, c='#2ca02c', label='Accurate predictions')
-    ax1.scatter(df_long[~accurate_mask]['Q1'], df_long[~accurate_mask]['Q2'],
-                alpha=0.5, s=50, c='#d62728', label='Inaccurate predictions')
+    ax1.scatter(df_long['Q1'], df_long['Q2'],
+                alpha=0.5, s=50, c='#1f77b4', label='Predictions')
     ax1.plot([1, 5], [1, 5], 'k--', linewidth=2, alpha=0.5, label='No change')
     ax1.set_xlabel('Q1: LLM Prediction', fontsize=11)
     ax1.set_ylabel('Q2: Agreement with Model', fontsize=11)
@@ -566,23 +446,18 @@ def plot_confirmation_bias(df_long):
     ax3.axvline(0, color='black', linestyle='--', linewidth=2)
     ax3.grid(axis='y', alpha=0.3)
 
-    # Panel 4: Mean trajectory by prediction quality
+    # Panel 4: Overall mean trajectory
     ax4 = axes[1, 1]
-    accurate_means = [df_long[accurate_mask]['Q1'].mean(),
-                  df_long[accurate_mask]['Q2'].mean(),
-                  df_long[accurate_mask]['Q4'].mean()]
-    inaccurate_means = [df_long[~accurate_mask]['Q1'].mean(),
-                 df_long[~accurate_mask]['Q2'].mean(),
-                 df_long[~accurate_mask]['Q4'].mean()]
+    overall_means = [df_long['Q1'].mean(),
+                     df_long['Q2'].mean(),
+                     df_long['Q4'].mean()]
 
-    ax4.plot([1, 2, 3], accurate_means, 'o-', color='#2ca02c', linewidth=3,
-             markersize=10, label='Accurate predictions')
-    ax4.plot([1, 2, 3], inaccurate_means, 'o-', color='#d62728', linewidth=3,
-             markersize=10, label='Inaccurate predictions')
+    ax4.plot([1, 2, 3], overall_means, 'o-', color='#1f77b4', linewidth=3,
+             markersize=10, label='All predictions')
     ax4.set_xticks([1, 2, 3])
     ax4.set_xticklabels(['Q1\n(LLM Pred)', 'Q2\n(See Model)', 'Q4\n(+ Explanation)'])
     ax4.set_ylabel('Mean Rating', fontsize=11)
-    ax4.set_title('Mean Opinion Trajectory by Quality', fontsize=13, fontweight='bold')
+    ax4.set_title('Mean Opinion Trajectory', fontsize=13, fontweight='bold')
     ax4.legend()
     ax4.grid(alpha=0.3)
 
@@ -692,9 +567,6 @@ def main(filepath='Solubility Research Form (Responses) - Form responses 1 (2).c
     wilcoxon_signed_rank_test(df_long)
     plot_opinion_change(df_long)
 
-    stratified_analysis(df_long)
-    plot_stratified_comparison(df_long)
-
     llm_level_analysis(df_long)
 
     llm_comparison_analysis(df_long)
@@ -707,7 +579,6 @@ def main(filepath='Solubility Research Form (Responses) - Form responses 1 (2).c
     print("  • llm_response_distributions.png")
     print("  • llm_confirmation_bias_analysis.png")
     print("  • llm_opinion_change_analysis.png")
-    print("  • llm_stratified_predictions.png")
     print("  • llm_comparison_boxplots.png")
 
     return df_long
