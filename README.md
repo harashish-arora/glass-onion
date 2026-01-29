@@ -1,17 +1,13 @@
-# [Paper Title TBD] - Anonymous ICML Submission
-
-> **Code and data for the paper: "[Paper Title]"**
-
----
+# Molecular Solubility Prediction
 
 ## Overview
 
-This repository contains the complete codebase for our molecular solubility prediction framework. We address solubility prediction across two distinct regimes:
+This repository contains the codebase for our molecular solubility prediction framework. We address solubility prediction across two distinct regimes:
 
 - **Regime I**: Aqueous solubility prediction (single solvent - water)
 - **Regime II**: Multi-solvent solubility prediction with temperature dependence
 
-Our approach combines physics-informed molecular descriptors with learned interaction representations to achieve state-of-the-art performance on both tasks.
+Our approach combines physics-informed molecular descriptors with learned interaction representations.
 
 ---
 
@@ -35,31 +31,11 @@ Our approach combines physics-informed molecular descriptors with learned intera
 │
 ├── baselines/                  # Baseline implementations
 │   ├── regime-i/              # Baselines for aqueous solubility
-│   │   ├── SolTranNet_paper/  # SolTranNet baseline
-│   │   ├── SolubNetD/         # SolubNetD baseline
-│   │   ├── aqsolpred/         # AqSolPred baseline
-│   │   ├── chemprop_baseline/ # ChemProp baseline
-│   │   ├── fastprop_baseline/ # FastProp baseline
-│   │   ├── ulrich/            # Ulrich et al. baseline
-│   │   ├── tayyebi/           # Tayyebi baseline
-│   │   └── gnn-benchmarks/    # GNN baselines (GIN, GCN, GAT, MPNN)
 │   └── regime-ii/             # Baselines for multi-solvent
-│       ├── fastsolv_1.0/      # FastSolv on BigSol 1.0
-│       ├── fastsolv_2.0/      # FastSolv on BigSol 2.0
-│       ├── fastsolv_leeds/    # FastSolv on Leeds
-│       ├── chemprop_baseline/ # ChemProp baseline
-│       └── rilood.py          # RiLOOD baseline
 │
-├── llm/                        # LLM Expert Evaluation Pipeline
-│   ├── survey.py              # Main LLM survey pipeline
-│   ├── survey_gpt.py          # GPT-4 evaluation
-│   ├── survey_claude.py       # Claude evaluation
-│   ├── survey_deepseek.py     # DeepSeek evaluation
-│   └── llm_solubility_analysis.py  # Analysis scripts
+├── llm/                        # LLM Evaluation Pipeline
 │
 ├── apelblat/                   # Apelblat Equation Validation
-│   ├── apelblat_experiment.py # Temperature-dependence validation
-│   └── APELBLAT_EXPERIMENT_EXPLAINED.md
 │
 └── requirements.txt            # Python dependencies
 ```
@@ -75,10 +51,6 @@ Our approach combines physics-informed molecular descriptors with learned intera
 ### Setup
 
 ```bash
-# Clone the repository
-git clone [ANONYMOUS_URL]
-cd [REPO_NAME]
-
 # Create virtual environment
 python -m venv venv
 source venv/bin/activate  # Linux/Mac
@@ -181,38 +153,15 @@ cd regime-ii
 python ablations.py
 ```
 
-This runs comprehensive ablations on:
-- Council feature groups
-- Interaction Transformer components
-- Temperature encoding strategies
-- Monotonicity constraints
-
 ### Running Baselines
 
 ```bash
 cd baselines/regime-i
 python baselining_generic_methods.py  # ML baselines
-python gnn-benchmarks-regime-i/baselining_gnn_methods.py  # GNN baselines
 
 cd baselines/regime-ii
 python baselining_generic_methods.py  # ML baselines
 python baselining_gnn_methods.py  # GNN baselines
-```
-
-### LLM Expert Evaluation
-
-```bash
-cd llm
-
-# Set API keys
-export GEMINI_API_KEY="your-key"
-export ANTHROPIC_API_KEY="your-key"
-export OPENAI_API_KEY="your-key"
-
-# Run evaluation
-python survey.py  # Uses Gemini by default
-python survey_claude.py
-python survey_gpt.py
 ```
 
 ### Apelblat Validation
@@ -232,30 +181,10 @@ Results are saved in respective directories:
 - `regime-i/model/` - Trained models
 - `regime-ii/model/` - Trained models and transformer weights
 - `baselines/*/benchmark_results/` - Baseline comparison results
-- `llm/llm_survey_pipeline_results*.json` - LLM evaluation results
 - `apelblat/apelblat_results/` - Apelblat validation metrics
-
----
-
-## Citation
-
-```bibtex
-@inproceedings{anonymous2026solubility,
-  title={[Paper Title TBD]},
-  author={Anonymous},
-  booktitle={International Conference on Machine Learning (ICML)},
-  year={2026}
-}
-```
 
 ---
 
 ## License
 
-This code is released under the MIT License. See `LICENSE` for details.
-
----
-
-## Acknowledgments
-
-We thank the creators of the open-source tools and datasets used in this work, including RDKit, CatBoost, and the various solubility benchmark datasets.
+This code is released under the MIT License.

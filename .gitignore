@@ -71,3 +71,6 @@ secrets.json
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+# Survey data (human responses)
+survey/
