@@ -75,8 +75,11 @@ Desktop.ini
 # Survey data (human responses)
 survey/
 
-# Form data (not part of official repo)
+# Form/explanation data (not part of official repo)
 regime-ii/form.csv
+regime-ii/form_explanations/
+regime-ii/form_extra/
+regime-ii/cgboost_explanations/
 
 # Arxiv submission files
 arxiv/
