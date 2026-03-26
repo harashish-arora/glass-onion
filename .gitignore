@@ -74,3 +74,9 @@ Desktop.ini
 
 # Survey data (human responses)
 survey/
+
+# Form data (not part of official repo)
+regime-ii/form.csv
+
+# Arxiv submission files
+arxiv/
