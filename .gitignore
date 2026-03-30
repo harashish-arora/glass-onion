@@ -93,3 +93,7 @@ form_explanations/
 threshold_analysis/
 feature_store/
 model/
+
+# Allow figures directory
+!figures/
+!figures/**
