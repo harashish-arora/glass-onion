@@ -40,10 +40,11 @@ venv.bak/
 *~
 .DS_Store
 
-# ML/DL artifacts (keep trained models for reproducibility)
-# *.pth
-# *.pt
-# *.joblib
+# ML/DL artifacts
+*.joblib
+*.pth
+*.pt
+*.p
 catboost_info/
 lightning_logs/
 wandb/

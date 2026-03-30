@@ -1,0 +1,32 @@
+[
+  {
+    "seed": 42,
+    "inference_time_seconds": 0.4512209892272949,
+    "samples_per_second": 3255.6109646309387,
+    "num_samples": 1469
+  },
+  {
+    "seed": 101,
+    "inference_time_seconds": 0.3947310447692871,
+    "samples_per_second": 3721.521323103945,
+    "num_samples": 1469
+  },
+  {
+    "seed": 123,
+    "inference_time_seconds": 0.3818652629852295,
+    "samples_per_second": 3846.9065987204517,
+    "num_samples": 1469
+  },
+  {
+    "seed": 456,
+    "inference_time_seconds": 0.3738858699798584,
+    "samples_per_second": 3929.006464136065,
+    "num_samples": 1469
+  },
+  {
+    "seed": 789,
+    "inference_time_seconds": 0.3654611110687256,
+    "samples_per_second": 4019.5795270916037,
+    "num_samples": 1469
+  }
+]
